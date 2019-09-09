@@ -2,6 +2,31 @@
 
 exports[`React should allow using hooks 1`] = `
 <h1>
-  bar
+  bar!
 </h1>
+`;
+
+exports[`React should handle arrays 1`] = `
+<ul>
+  <li>
+    foo
+  </li>
+  <li>
+    bar
+  </li>
+</ul>
+`;
+
+exports[`React should handle arrays 2`] = `
+<ul>
+  <li>
+    foo
+  </li>
+  <li>
+    bar
+  </li>
+  <li>
+    baz
+  </li>
+</ul>
 `;

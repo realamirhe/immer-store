@@ -20,8 +20,13 @@ export function createPathTracker(state, path, paths) {
         }
       },
       get(_, prop) {
-        if (typeof state[prop] === 'function') {
+        if (prop === 'length' || typeof prop === 'symbol') {
+          console.log(prop)
           return state[prop]
+        }
+
+        if (typeof state[prop] === 'function') {
+          return (...args) => state[prop](...args)
         }
 
         const newPath = path.concat(prop)

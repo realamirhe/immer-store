@@ -1,6 +1,6 @@
 {
   "name": "immer-state-tree",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Functional actions",
   "author": "Christian Alfoni <christianalfoni@gmail.com>",
   "license": "MIT",
