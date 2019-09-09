@@ -2,7 +2,7 @@ import * as React from 'react'
 // @ts-ignore
 import { __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED } from 'react'
 import { context } from './provider'
-import { Store, LogType, Config } from './types'
+import { Store, LogType, Config, ActionsWithoutContext } from './types'
 import { createPathTracker, log } from './utils'
 
 // Creates a state access proxy which basically just tracks
@@ -84,7 +84,8 @@ export function createStateHook<C extends Config<any, any, any>>() {
 
 // For typing support we allow you to create an actions hook
 export function createActionsHook<C extends Config<any, any, any>>() {
-  return (): C['actions'] => {
+  // @ts-ignore
+  return (): ActionsWithoutContext<C['actions']> => {
     const instance = React.useContext(context)
 
     if (instance) {
