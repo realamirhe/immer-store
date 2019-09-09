@@ -1,2 +1,3 @@
-# immer-state-tree
-No need for reducers, action creators and dispatching. Immer has you covered
+# overmind-react
+
+[https://overmindjs.org](https://overmindjs.org)
