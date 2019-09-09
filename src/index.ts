@@ -193,15 +193,16 @@ export function createStore<
     return Object.keys(actions).reduce(
       (aggr, key) => {
         const actionOrNested = actions[key]
+        const newPath = path.concat(key)
 
         if (typeof actionOrNested === 'function') {
           return Object.assign(aggr, {
-            [key]: createAction(path.join('.'), actionOrNested),
+            [key]: createAction(newPath.join('.'), actionOrNested),
           })
         }
 
         return Object.assign(aggr, {
-          [key]: createActions(actionOrNested, path.concat(key)),
+          [key]: createActions(actionOrNested, newPath),
         })
       },
       {} as ActionsWithoutContext<A>

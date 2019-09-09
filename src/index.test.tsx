@@ -46,7 +46,7 @@ describe('React', () => {
     expect(renderCount).toBe(2)
     expect(tree.toJSON()).toMatchSnapshot()
   })
-  test.only('should handle arrays', () => {
+  test('should handle arrays', () => {
     const config = createConfig({
       state: {
         foo: ['foo', 'bar'],

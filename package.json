@@ -1,6 +1,6 @@
 {
   "name": "immer-state-tree",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "description": "Functional actions",
   "author": "Christian Alfoni <christianalfoni@gmail.com>",
   "license": "MIT",
@@ -18,7 +18,8 @@
     "test:watch": "jest --watch --updateSnapshot --coverage false",
     "prebuild": "npm run clean",
     "postbuild": "rimraf {lib,es}/**/__tests__",
-    "posttest": "npm run typecheck"
+    "posttest": "npm run typecheck",
+    "prepublish": "npm test && npm run build"
   },
   "keywords": [
     "state",
