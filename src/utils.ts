@@ -10,10 +10,10 @@ export function createPathTracker(state, path, paths) {
   return new Proxy(
     {},
     {
-      ownKeys(_) {
-        return Object.keys(state)
+      ownKeys() {
+        return Reflect.ownKeys(state)
       },
-      getOwnPropertyDescriptor(k) {
+      getOwnPropertyDescriptor() {
         return {
           enumerable: true,
           configurable: true,
