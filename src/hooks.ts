@@ -27,7 +27,7 @@ function throwMissingStoreError() {
 }
 
 // For typing support we allow you to create a state hook
-export function createStateHook<C extends Config<any, any, any, any>>() {
+export function createStateHook<C extends Config<any, any, any>>() {
   function useState<T>(cb: (state: C['state']) => T): T
   function useState(): C['state']
   function useState() {
@@ -95,7 +95,7 @@ export function createStateHook<C extends Config<any, any, any, any>>() {
 }
 
 // For typing support we allow you to create an actions hook
-export function createActionsHook<C extends Config<any, any, any, any>>() {
+export function createActionsHook<C extends Config<any, any, any>>() {
   // @ts-ignore
   return (): ActionsWithoutContext<C['actions']> => {
     const instance = React.useContext(context)

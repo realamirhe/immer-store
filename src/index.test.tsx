@@ -1,10 +1,4 @@
-import {
-  createStore,
-  createConfig,
-  createStateHook,
-  createActionsHook,
-  Provider,
-} from './'
+import { createStore, createConfig, createStateHook, Provider } from './'
 import * as React from 'react'
 import * as renderer from 'react-test-renderer'
 
@@ -94,7 +88,7 @@ describe('React', () => {
         addFoo: ({ state }) => {
           state.object.foo = 'bar'
         },
-        removeFoo: ({ state, effects }) => {
+        removeFoo: ({ state }) => {
           delete state.object.foo
         },
       },
@@ -138,6 +132,7 @@ describe('React', () => {
         },
       },
     })
+
     const useState = createStateHook<typeof config>()
     const store = createStore(config)
     const FooComponent: React.FunctionComponent = () => {

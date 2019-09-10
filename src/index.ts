@@ -4,11 +4,9 @@ import {
   LogType,
   BaseActions,
   BaseEffects,
-  ActionsWithoutContext,
   Store,
   Config,
   Options,
-  BaseComputed,
 } from './types'
 import { log, configureUtils } from './utils'
 export {
@@ -64,9 +62,8 @@ function createNestedStructure(
 export function createConfig<
   S extends State,
   E extends BaseEffects,
-  C extends BaseComputed,
-  A extends BaseActions<S, E, C>
->(config: Config<S, E, C, A>) {
+  A extends BaseActions<S, E>
+>(config: Config<S, E, A>) {
   return config
 }
 
@@ -75,12 +72,8 @@ export function createConfig<
 export function createStore<
   S extends State,
   E extends BaseEffects,
-  C extends BaseComputed,
-  A extends BaseActions<S, E, C>
->(
-  config: Config<S, E, C, A>,
-  options: Options = { debug: true }
-): Store<S, C, A> {
+  A extends BaseActions<S, E>
+>(config: Config<S, E, A>, options: Options = { debug: true }): Store<S, A> {
   if (
     process.env.NODE_ENV === 'production' ||
     process.env.NODE_ENV === 'test'
@@ -235,29 +228,7 @@ export function createStore<
     return target
   }
 
-  function createComputed(
-    target: object,
-    key: string,
-    name: string,
-    func: (state: any) => any
-  ) {
-    let isDirty = true
-    let value
-
-    Object.defineProperty(target, key, {
-      get() {
-        if (isDirty) {
-        }
-
-        return value
-      },
-    })
-
-    return target
-  }
-
   const actions = config.actions || {}
-  const computed = config.computed || {}
 
   return {
     // Exposes the immutable state on the instance
@@ -265,7 +236,6 @@ export function createStore<
       return currentState
     },
     subscribe,
-    computed: createNestedStructure(computed, createComputed),
     actions: createNestedStructure(actions, createAction),
   }
 }
