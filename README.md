@@ -247,6 +247,39 @@ export const changeTitle: Action<string> = ({ state }, title) => {
 }
 ```
 
+## Target state
+
+Since **immer-store** is tracking what components actually use it has a pretty nice optimization especially useful in lists. You can target a piece of state and then ensure that the component only renders again if that specific piece of state changes.
+
+```tsx
+const Todo: React.FC<{ id: string }> = ({ id }) => {
+  const todo = useState((state) => state.posts[id])
+  const actions = useActions()
+
+  return (
+    <li>
+      <h4>{todo.title}</h4>
+      <input
+        checked={todo.completed}
+        onChange={() => actions.toggleTodo(id)}
+      /> {todo.description}
+    </li>
+  )
+}
+```
+
+Since we target the **todo** itself this component will only reconcile again if any of its accessed properties change, for example the **completed** state. If you were to rather pass the todo as a prop also the component passing the todo would need to reconcile on any change of the todo. This is an optimization that only makes sense in big lists where individual state items in the list change. Normally when you want to target state you can just:
+
+```tsx
+const SomeComponent: React.FC_ = () => {
+  const { home, issues } = useState()
+
+  return (
+    ...
+  )
+}
+```
+
 ## Debugging
 
 **immer-store** knows a lot about your application:
