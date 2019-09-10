@@ -1,8 +1,8 @@
-# immer-state-tree
+# immer-store
 
 ## Motivation
 
-With the success of [Immer]() there is no doubt that developers has no problems writing pure code in an impure API. The mutation API of JavaScript is straight forward and expressive, but the default result is impure, going against the immutable model favoured by [React](). With **immer-state-tree** we allow Immer to take even more control and basically gets rid of reducers, dispatching and action creators.
+With the success of [Immer]() there is no doubt that developers has no problems writing pure code in an impure API. The mutation API of JavaScript is straight forward and expressive, but the default result is impure, going against the immutable model favoured by [React](). With **immer-store** we allow Immer to take even more control and basically gets rid of reducers, dispatching and action creators.
 
 **Instead of having to write this:**
 
@@ -46,13 +46,13 @@ Everything is still **immutable**.
 
 ## How does it work?
 
-**immer-state-tree** takes inspiration from the "api"-less API of [overmindjs](https://overmindjs.org). The codebase is rather small and commented, so you can take a dive into that. A quick summary though:
+**immer-store** takes inspiration from the "api"-less API of [overmindjs](https://overmindjs.org). The codebase is rather small and commented, so you can take a dive into that. A quick summary though:
 
-- With a combination of chosen API and [Proxies]() **immer-state-tree** exposes a state object to your actions that produces Immer drafts under the hood. The concept of a draft is completely hidden from you. You only think actions and state
+- With a combination of chosen API and [Proxies]() **immer-store** exposes a state object to your actions that produces Immer drafts under the hood. The concept of a draft is completely hidden from you. You only think actions and state
 - It supports changing state asynchronously in your actions
-- Because **immer-state-tree** exposes an action API it also has access to the execution of the action and access to state. That means it is able to batch up mutations and notify components at optimal times to render
-- Instead of using **selectors** to expose state to components the **useState** hook tracks automatically what state you access and subscribes to it. That means there is no value comparison in every single hook on every mutation, but **immer-state-tree** tells specifically what components needs to update related to matching batched set of mutations
-- **immer-state-tree** has a concept of **effects** which is a simple injection mechanism allowing you to separate generic code from your application logic. It also simplifies testing
+- Because **immer-store** exposes an action API it also has access to the execution of the action and access to state. That means it is able to batch up mutations and notify components at optimal times to render
+- Instead of using **selectors** to expose state to components the **useState** hook tracks automatically what state you access and subscribes to it. That means there is no value comparison in every single hook on every mutation, but **immer-store** tells specifically what components needs to update related to matching batched set of mutations
+- **immer-store** has a concept of **effects** which is a simple injection mechanism allowing you to separate generic code from your application logic. It also simplifies testing
 - The library is written in [Typescript]() and has excellent support for typing with minimal effort
 
 ## Get started
@@ -60,7 +60,7 @@ Everything is still **immutable**.
 ```jsx
 import React from 'react'
 import { render } from 'react-dom'
-import { createStore, Provider, useState, useActions } from 'immer-state-tree'
+import { createStore, Provider, useState, useActions } from 'immer-store'
 
 const store = createStore({
   state: {
@@ -116,7 +116,7 @@ export const config = {
 }
 
 // index.js
-import { createStore } from 'immer-state-tree'
+import { createStore } from 'immer-store'
 import { config } from './store'
 
 const store = createStore(config)
@@ -126,7 +126,7 @@ This structure ensures that you can split up your state and actions into differe
 
 ## Using effects
 
-Instead of importing 3rd party libraries and writing code with browser side effects etc. **immer-state-tree** allows you to separate it from your application logic in the actions. This creates a cleaner codebase and you get several other benefits:
+Instead of importing 3rd party libraries and writing code with browser side effects etc. **immer-store** allows you to separate it from your application logic in the actions. This creates a cleaner codebase and you get several other benefits:
 
 1. All the code in your actions will be domain specific, no low level generic APIs
 2. Your actions will have less code and you avoid leaking out things like URLs, types etc.
@@ -164,7 +164,7 @@ export const config = {
 
 ## Typing
 
-You got typing straight out of the box with **immer-state-tree**.
+You got typing straight out of the box with **immer-store**.
 
 ```ts
 const store = createStore({
@@ -185,7 +185,7 @@ store.actions.changeTitle // (title: string) => void
 As you scale up you want to do this:
 
 ```ts
-import { createConfig, IAction } from 'immer-state-tree'
+import { createConfig, IAction } from 'immer-store'
 
 import * as home from '../pages/home'
 import * as issues from '../pages/issues'
@@ -247,7 +247,7 @@ export const changeTitle: Action<string> = ({ state }, title) => {
 
 ## Debugging
 
-**immer-state-tree** knows a lot about your application:
+**immer-store** knows a lot about your application:
 
 - It knows what actions are changing what state
 - It knows what state all components are looking at

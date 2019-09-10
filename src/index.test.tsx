@@ -25,7 +25,7 @@ describe('React', () => {
     const store = createStore(config)
     const FooComponent: React.FunctionComponent = () => {
       const state = useState()
-      console.log(state.foo)
+
       renderCount++
 
       return <h1>{state.foo}</h1>

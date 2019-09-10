@@ -1,10 +1,10 @@
 {
-  "name": "immer-state-tree",
-  "version": "0.0.5",
+  "name": "immer-store",
+  "version": "0.0.1",
   "description": "Functional actions",
   "author": "Christian Alfoni <christianalfoni@gmail.com>",
   "license": "MIT",
-  "repository": "https://github.com/christianalfoni/immer-state-tree",
+  "repository": "https://github.com/christianalfoni/immer-store",
   "main": "lib/index.js",
   "module": "es/index.js",
   "types": "lib/index.d.ts",
