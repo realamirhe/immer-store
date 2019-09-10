@@ -187,7 +187,7 @@ store.actions.changeTitle // (title: string) => void
 As you scale up you want to do this:
 
 ```ts
-import { createConfig, IAction } from 'immer-store'
+import { IAction } from 'immer-store'
 
 import * as home from '../pages/home'
 import * as issues from '../pages/issues'
@@ -204,15 +204,14 @@ const actions = {
 
 const effects = {}
 
-// "createConfig" ensures you have defined your state and actions correctly
-export const config = createConfig({
+export const config = {
   state,
   actions,
   effects
-})
+}
 
 // This type can be used within the pages to define actions
-export interface Action<Payload>
+export interface Action<Payload = void>
   extends IAction<Payload, typeof state, typeof effects> {}
 ```
 

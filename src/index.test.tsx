@@ -1,9 +1,9 @@
 import {
   createStore,
-  createConfig,
   createStateHook,
   Provider,
   createSelectorHook,
+  IAction,
 } from './'
 import * as React from 'react'
 import * as renderer from 'react-test-renderer'
@@ -12,7 +12,7 @@ import { createSelector } from 'reselect'
 describe('React', () => {
   test('should allow using hooks', () => {
     let renderCount = 0
-    const config = createConfig({
+    const config = {
       state: {
         foo: 'bar',
       },
@@ -21,7 +21,7 @@ describe('React', () => {
           state.foo += '!'
         },
       },
-    })
+    }
     const useState = createStateHook<typeof config>()
     const store = createStore(config)
     const FooComponent: React.FunctionComponent = () => {
@@ -48,7 +48,7 @@ describe('React', () => {
     expect(tree.toJSON()).toMatchSnapshot()
   })
   test('should handle arrays', () => {
-    const config = createConfig({
+    const config = {
       state: {
         foo: ['foo', 'bar'],
       },
@@ -57,7 +57,7 @@ describe('React', () => {
           state.foo.push('baz')
         },
       },
-    })
+    }
     const useState = createStateHook<typeof config>()
     const store = createStore(config)
     const FooComponent: React.FunctionComponent = () => {
@@ -87,19 +87,26 @@ describe('React', () => {
     expect(tree.toJSON()).toMatchSnapshot()
   })
   test('should render on object add and remove', () => {
-    const config = createConfig({
+    const addFoo: Action = ({ state }) => {
+      state.object.foo = 'bar'
+    }
+
+    const removeFoo: Action = ({ state }) => {
+      delete state.object.foo
+    }
+
+    const config = {
       state: {
         object: {} as { [key: string]: string },
       },
       actions: {
-        addFoo: ({ state }) => {
-          state.object.foo = 'bar'
-        },
-        removeFoo: ({ state }) => {
-          delete state.object.foo
-        },
+        addFoo,
+        removeFoo,
       },
-    })
+    }
+
+    interface Action<Payload = void> extends IAction<Payload, typeof config> {}
+
     const useState = createStateHook<typeof config>()
     const store = createStore(config)
     const FooComponent: React.FunctionComponent = () => {
@@ -129,7 +136,7 @@ describe('React', () => {
     expect(tree.toJSON()).toMatchSnapshot()
   })
   test('should target state', () => {
-    const config = createConfig({
+    const config = {
       state: {
         foo: ['foo', 'bar'],
       },
@@ -138,7 +145,7 @@ describe('React', () => {
           state.foo.push('baz')
         },
       },
-    })
+    }
 
     const useState = createStateHook<typeof config>()
     const store = createStore(config)
@@ -169,7 +176,7 @@ describe('React', () => {
     expect(tree.toJSON()).toMatchSnapshot()
   })
   test('should allow usage of reselect', () => {
-    const config = createConfig({
+    const config = {
       state: {
         foo: ['foo', 'bar'],
       },
@@ -178,7 +185,7 @@ describe('React', () => {
           state.foo.push('baz')
         },
       },
-    })
+    }
 
     const useSelector = createSelectorHook<typeof config>()
     const store = createStore(config)

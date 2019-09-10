@@ -59,16 +59,6 @@ function createNestedStructure(
   }, {})
 }
 
-// You can create the config using a helper function,
-// which is basically only for typing
-export function createConfig<
-  S extends State,
-  E extends BaseEffects,
-  A extends BaseActions<S, E>
->(config: Config<S, E, A>) {
-  return config
-}
-
 // Creates the store itself by preparing the state, converting actions to callable
 // functions and manage their execution to notify state changes
 export function createStore<

@@ -12,7 +12,7 @@ export interface IAction<Payload, C extends Config<any, any, any>> {
       state: C['state']
       effects: C['effects']
     },
-    payload?: Payload
+    payload: Payload
   ): any
 }
 
