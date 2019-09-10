@@ -16,7 +16,7 @@ describe('React', () => {
         foo: 'bar',
       },
       actions: {
-        updateFoo({ state }) {
+        updateFoo: ({ state }) => {
           state.foo += '!'
         },
       },
@@ -52,7 +52,7 @@ describe('React', () => {
         foo: ['foo', 'bar'],
       },
       actions: {
-        updateFoo({ state }) {
+        updateFoo: ({ state }) => {
           state.foo.push('baz')
         },
       },
@@ -91,10 +91,10 @@ describe('React', () => {
         object: {} as { [key: string]: string },
       },
       actions: {
-        addFoo({ state }) {
+        addFoo: ({ state }) => {
           state.object.foo = 'bar'
         },
-        removeFoo({ state }) {
+        removeFoo: ({ state, effects }) => {
           delete state.object.foo
         },
       },

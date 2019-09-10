@@ -67,7 +67,7 @@ const store = createStore({
     title: ''
   },
   actions: {
-    changeTitle({ state }, title) {
+    changeTitle: ({ state }, title) => {
       state.title = title
     }
   }
@@ -142,17 +142,17 @@ export const config = {
   actions: {...},
   effects: {
     storage: {
-      get(key) {
+      get: (key) => {
         const value = localStorage.getItem(key)
 
         return typeof value === 'string' ? JSON.parse(value) : value
       },
-      set(key, value) {
+      set: (key, value) => {
         localStorage.setItem(key, JSON.stringify(value))
       }
     },
     http: {
-      async get(url) {
+      get: async (url) => {
         const response = fetch(url)
 
         return response.json()
@@ -161,6 +161,8 @@ export const config = {
   }
 }
 ```
+
+**Note!** When using Typescript you have to define your effects as functions (as shown above), not methods. This is common convention, though pointing out it being necessary for typing to work.
 
 ## Typing
 
@@ -172,7 +174,7 @@ const store = createStore({
     title: ''
   },
   actions: {
-    changeTitle({ state }, title: string) {
+    changeTitle: ({ state }, title: string) => {
       state.title = title
     }
   }

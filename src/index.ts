@@ -17,18 +17,7 @@ export {
   useActions,
 } from './hooks'
 export { Provider } from './provider'
-
-// A type which can be extended by
-// interface Action<Payload> extends IAction<Payload, typeof state, typeof effects> {}
-export interface IAction<Payload, S extends State, E extends BaseEffects> {
-  (
-    context: {
-      state: S
-      effects: E
-    },
-    payload?: Payload
-  ): any
-}
+export { IAction } from './types'
 
 // Creates the updated state and a list of paths changed after batched mutations
 function getUpdate(draft) {

@@ -4,6 +4,18 @@ export type Options = {
   debug: boolean
 }
 
+// A type which can be extended by
+// interface Action<Payload> extends IAction<Payload, typeof state, typeof effects> {}
+export interface IAction<Payload, S extends State, E extends BaseEffects> {
+  (
+    context: {
+      state: S
+      effects: E
+    },
+    payload?: Payload
+  ): any
+}
+
 export interface Store<S extends State, A extends BaseActions<any, any>> {
   state: Immutable<Draft<S>>
   actions: ActionsWithoutContext<A>
@@ -31,17 +43,13 @@ export interface State {
 }
 
 export interface BaseActions<S extends State, E extends BaseEffects> {
-  [key: string]: (
-    context: {
-      state: S
-      effects: E
-    },
-    payload?: any
-  ) => any | BaseActions<S, E>
+  [key: string]: IAction<any, S, E>
 }
 
+type Func = (...args: any[]) => any
+
 export interface BaseEffects {
-  [key: string]: (...args) => any | BaseEffects
+  [key: string]: BaseEffects | Func
 }
 
 export type ActionsWithoutContext<U extends BaseActions<any, any>> = {
