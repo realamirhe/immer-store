@@ -30,3 +30,21 @@ exports[`React should handle arrays 2`] = `
   </li>
 </ul>
 `;
+
+exports[`React should render on object add and remove 1`] = `
+<h1>
+  does not exist
+</h1>
+`;
+
+exports[`React should render on object add and remove 2`] = `
+<h1>
+  bar
+</h1>
+`;
+
+exports[`React should render on object add and remove 3`] = `
+<h1>
+  does not exist
+</h1>
+`;

@@ -85,4 +85,46 @@ describe('React', () => {
 
     expect(tree.toJSON()).toMatchSnapshot()
   })
+  test.only('should render on object add and remove', () => {
+    const config = createConfig({
+      state: {
+        object: {} as { [key: string]: string },
+      },
+      actions: {
+        addFoo({ state }) {
+          state.object.foo = 'bar'
+        },
+        removeFoo({ state }) {
+          delete state.object.foo
+        },
+      },
+    })
+    const useState = createStateHook<typeof config>()
+    const store = createStore(config)
+    const FooComponent: React.FunctionComponent = () => {
+      const state = useState()
+
+      return <h1>{state.object.foo ? state.object.foo : 'does not exist'}</h1>
+    }
+
+    const tree = renderer.create(
+      <Provider store={store}>
+        <FooComponent />
+      </Provider>
+    )
+
+    expect(tree).toMatchSnapshot()
+
+    renderer.act(() => {
+      store.actions.addFoo()
+    })
+
+    expect(tree.toJSON()).toMatchSnapshot()
+
+    renderer.act(() => {
+      store.actions.removeFoo()
+    })
+
+    expect(tree.toJSON()).toMatchSnapshot()
+  })
 })

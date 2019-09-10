@@ -36,11 +36,10 @@ function getUpdate(draft) {
 
   const newState = finishDraft(draft, (operations) => {
     operations.forEach((operation) => {
-      // When a key is added to an object the path to the object itself also has a change
-      if (operation.op === 'add') {
+      // When a key/index is added to an object/array the path to the object/array itself also has a change
+      if (operation.op === 'add' || operation.op === 'remove') {
         paths.add(operation.path.slice(0, operation.path.length - 1).join('.'))
       }
-      // TODO: Add other operations
 
       paths.add(operation.path.join('.'))
     })
