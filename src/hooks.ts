@@ -7,7 +7,7 @@ import { createPathTracker, log } from './utils'
 
 // Creates a state access proxy which basically just tracks
 // what paths you are accessing in the state
-function createTracker(instance: Store<any, any>) {
+function createTracker(instance: Store<any, any, any>) {
   const paths = new Set<string>()
 
   return {
@@ -42,7 +42,7 @@ function throwMissingStoreError() {
 }
 
 // For typing support we allow you to create a state hook
-export function createStateHook<C extends Config<any, any, any>>() {
+export function createStateHook<C extends Config<any, any, any, any>>() {
   return (): C['state'] => {
     // So that we can access the name of the component during development
     const {
@@ -83,7 +83,7 @@ export function createStateHook<C extends Config<any, any, any>>() {
 }
 
 // For typing support we allow you to create an actions hook
-export function createActionsHook<C extends Config<any, any, any>>() {
+export function createActionsHook<C extends Config<any, any, any, any>>() {
   // @ts-ignore
   return (): ActionsWithoutContext<C['actions']> => {
     const instance = React.useContext(context)

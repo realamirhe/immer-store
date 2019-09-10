@@ -8,6 +8,7 @@ import {
   Store,
   Config,
   Options,
+  BaseComputed,
 } from './types'
 import { log, configureUtils } from './utils'
 export {
@@ -37,13 +38,35 @@ function getUpdate(draft) {
   return { newState, paths }
 }
 
+// Creates a nested structure and handling functions with a factory
+// Used by actions and computed
+function createNestedStructure(
+  structure: object,
+  factory: (target: object, key: string, path: string, func: Function) => any,
+  path: string[] = []
+) {
+  return Object.keys(structure).reduce((aggr, key) => {
+    const funcOrNested = structure[key]
+    const newPath = path.concat(key)
+
+    if (typeof funcOrNested === 'function') {
+      return factory(aggr, key, newPath.join('.'), funcOrNested)
+    }
+
+    return Object.assign(aggr, {
+      [key]: createNestedStructure(funcOrNested, factory, newPath),
+    })
+  }, {})
+}
+
 // You can create the config using a helper function,
 // which is basically only for typing
 export function createConfig<
   S extends State,
   E extends BaseEffects,
-  A extends BaseActions<S, E>
->(config: Config<S, E, A>) {
+  C extends BaseComputed,
+  A extends BaseActions<S, E, C>
+>(config: Config<S, E, C, A>) {
   return config
 }
 
@@ -52,8 +75,12 @@ export function createConfig<
 export function createStore<
   S extends State,
   E extends BaseEffects,
-  A extends BaseActions<S, E>
->(config: Config<S, E, A>, options: Options = { debug: true }): Store<S, A> {
+  C extends BaseComputed,
+  A extends BaseActions<S, E, C>
+>(
+  config: Config<S, E, C, A>,
+  options: Options = { debug: true }
+): Store<S, C, A> {
   if (
     process.env.NODE_ENV === 'production' ||
     process.env.NODE_ENV === 'test'
@@ -65,6 +92,30 @@ export function createStore<
 
   let currentState = finishDraft(createDraft(config.state))
   const listeners = {}
+
+  // Allows components to subscribe by passing in the paths they are tracking
+  function subscribe(paths: Set<string>, update: () => void, name: string) {
+    const currentPaths = Array.from(paths)
+    const subscription = {
+      update,
+      name,
+    }
+    // The created subscription is added to each path
+    // that it is interested
+    currentPaths.forEach((path) => {
+      if (!listeners[path]) {
+        listeners[path] = []
+      }
+      listeners[path].push(subscription)
+    })
+
+    // We return a dispose function to remove the subscription from the paths
+    return () => {
+      currentPaths.forEach((path) => {
+        listeners[path].splice(listeners[path].indexOf(subscription), 1)
+      })
+    }
+  }
 
   // Is used when mutations has been tracked and any subscribers should be notified
   function updateListeners(paths: Set<string>) {
@@ -91,8 +142,13 @@ export function createStore<
     updateListeners(paths)
   }
 
-  function createAction(name: string, func: (...args) => any) {
-    return (payload) => {
+  function createAction(
+    target: object,
+    key: string,
+    name: string,
+    func: (...args) => any
+  ) {
+    target[key] = (payload) => {
       // We keep track of the current draft. It may change during async execution
       let currentDraft
       // We also keep track of a timeout as there might be multiple async steps where
@@ -175,58 +231,41 @@ export function createStore<
 
       return actionResult
     }
+
+    return target
   }
 
-  function createActions(actions: BaseActions<any, any>, path: string[] = []) {
-    return Object.keys(actions).reduce(
-      (aggr, key) => {
-        const actionOrNested = actions[key]
-        const newPath = path.concat(key)
+  function createComputed(
+    target: object,
+    key: string,
+    name: string,
+    func: (state: any) => any
+  ) {
+    let isDirty = true
+    let value
 
-        if (typeof actionOrNested === 'function') {
-          return Object.assign(aggr, {
-            [key]: createAction(newPath.join('.'), actionOrNested),
-          })
+    Object.defineProperty(target, key, {
+      get() {
+        if (isDirty) {
         }
 
-        return Object.assign(aggr, {
-          [key]: createActions(actionOrNested, newPath),
-        })
+        return value
       },
-      {} as ActionsWithoutContext<A>
-    )
+    })
+
+    return target
   }
 
   const actions = config.actions || {}
+  const computed = config.computed || {}
 
   return {
     // Exposes the immutable state on the instance
     get state() {
       return currentState
     },
-    // Allows components to subscribe by passing in the paths they are tracking
-    subscribe(paths: Set<string>, update: () => void, name: string) {
-      const currentPaths = Array.from(paths)
-      const subscription = {
-        update,
-        name,
-      }
-      // The created subscription is added to each path
-      // that it is interested
-      currentPaths.forEach((path) => {
-        if (!listeners[path]) {
-          listeners[path] = []
-        }
-        listeners[path].push(subscription)
-      })
-
-      // We return a dispose function to remove the subscription from the paths
-      return () => {
-        currentPaths.forEach((path) => {
-          listeners[path].splice(listeners[path].indexOf(subscription), 1)
-        })
-      }
-    },
-    actions: createActions(actions),
+    subscribe,
+    computed: createNestedStructure(computed, createComputed),
+    actions: createNestedStructure(actions, createAction),
   }
 }

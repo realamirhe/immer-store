@@ -7,39 +7,40 @@ export function configureUtils(options: Options) {
 }
 
 export function createPathTracker(state, path, paths) {
-  return new Proxy(
-    {},
-    {
-      ownKeys() {
-        return Reflect.ownKeys(state)
-      },
-      getOwnPropertyDescriptor() {
-        return {
-          enumerable: true,
-          configurable: true,
-        }
-      },
-      get(_, prop) {
-        if (prop === 'length' || typeof prop === 'symbol') {
-          console.log(prop)
-          return state[prop]
-        }
-
-        if (typeof state[prop] === 'function') {
-          return (...args) => state[prop](...args)
-        }
-
-        const newPath = path.concat(prop)
-        paths.add(newPath.join('.'))
-
-        if (typeof state[prop] === 'object' && state[prop] !== null) {
-          return createPathTracker(state[prop], newPath, paths)
-        }
-
+  return new Proxy(state, {
+    ownKeys() {
+      return Reflect.ownKeys(state)
+    },
+    getOwnPropertyDescriptor() {
+      return {
+        enumerable: true,
+        configurable: false,
+      }
+    },
+    get(_, prop) {
+      if (prop === 'length' || typeof prop === 'symbol') {
         return state[prop]
-      },
-    }
-  )
+      }
+
+      if (typeof state[prop] === 'function') {
+        return (...args) => {
+          return state[prop].call(
+            createPathTracker(state, path, paths),
+            ...args
+          )
+        }
+      }
+
+      const newPath = path.concat(prop)
+      paths.add(newPath.join('.'))
+
+      if (typeof state[prop] === 'object' && state[prop] !== null) {
+        return createPathTracker(state[prop], newPath, paths)
+      }
+
+      return state[prop]
+    },
+  })
 }
 
 export function log(type: LogType, data: string) {
