@@ -85,7 +85,7 @@ describe('React', () => {
 
     expect(tree.toJSON()).toMatchSnapshot()
   })
-  test.only('should render on object add and remove', () => {
+  test('should render on object add and remove', () => {
     const config = createConfig({
       state: {
         object: {} as { [key: string]: string },
