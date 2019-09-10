@@ -7,35 +7,12 @@ import { createPathTracker, log } from './utils'
 
 // Creates a state access proxy which basically just tracks
 // what paths you are accessing in the state
-function createTracker(instance: any) {
+function createTracker(instance: { state: any }, targetPath: string[] = []) {
   const paths = new Set<string>()
 
   return {
     getState() {
-      return new Proxy(
-        {},
-        {
-          get(_, prop) {
-            if (typeof instance.state[prop] === 'function') {
-              return (...args) => {
-                return instance.state[prop].call(
-                  createPathTracker(instance.state, [], paths),
-                  ...args
-                )
-              }
-            }
-            paths.add(prop.toString())
-            if (
-              typeof instance.state[prop] === 'object' &&
-              instance.state[prop] !== null
-            ) {
-              return createPathTracker(instance.state[prop], [prop], paths)
-            }
-
-            return instance.state[prop]
-          },
-        }
-      )
+      return createPathTracker(instance.state, targetPath, paths, false)
     },
     getPaths() {
       return paths
@@ -51,8 +28,8 @@ function throwMissingStoreError() {
 
 // For typing support we allow you to create a state hook
 export function createStateHook<C extends Config<any, any, any, any>>() {
-  function useState(): C['state']
   function useState<T>(cb: (state: C['state']) => T): T
+  function useState(): C['state']
   function useState() {
     // So that we can access the name of the component during development
     const {
@@ -71,11 +48,30 @@ export function createStateHook<C extends Config<any, any, any, any>>() {
     if (instance) {
       // We create a tracker to figure out what state is actually being accessed
       // by this component
-      const tracker = React.useRef(
-        createTracker(
-          arguments[0] ? { state: arguments[0](instance.state) } : instance
-        )
-      ).current
+      let tracker
+
+      // This tracker grabs the initial path, added to any other paths actually accessed
+      const targetState = arguments[0]
+      if (targetState) {
+        const targetTracker = createTracker(instance)
+        targetState(targetTracker.getState())
+        const targetPath = (
+          Array.from(targetTracker.getPaths()).pop() || ''
+        ).split('.')
+        tracker = React.useRef(
+          createTracker(
+            {
+              state: targetPath.reduce(
+                (aggr, key) => aggr[key],
+                instance.state
+              ),
+            },
+            targetPath
+          )
+        ).current
+      } else {
+        tracker = React.useRef(createTracker(instance)).current
+      }
 
       React.useLayoutEffect(() => {
         log(
@@ -89,12 +85,10 @@ export function createStateHook<C extends Config<any, any, any, any>>() {
         return instance.subscribe(tracker.getPaths(), forceUpdate, name)
       })
 
-      return tracker.getState() as any
+      return tracker.getState()
     }
 
     throwMissingStoreError()
-    // @ts-ignore
-    return
   }
 
   return useState

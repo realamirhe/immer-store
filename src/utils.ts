@@ -6,19 +6,10 @@ export function configureUtils(options: Options) {
   _options = options
 }
 
-export function createPathTracker(state, path, paths) {
-  return new Proxy(state, {
-    ownKeys() {
-      return Reflect.ownKeys(state)
-    },
-    getOwnPropertyDescriptor() {
-      return {
-        enumerable: true,
-        configurable: false,
-      }
-    },
+export function createPathTracker(state, path, paths, attachProxy = true) {
+  return new Proxy(attachProxy ? state : {}, {
     get(_, prop) {
-      if (prop === 'length' || typeof prop === 'symbol') {
+      if (prop === 'length' || typeof prop === 'symbol' || prop === 'inspect') {
         return state[prop]
       }
 

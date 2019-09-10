@@ -49,7 +49,7 @@ exports[`React should render on object add and remove 3`] = `
 </h1>
 `;
 
-exports[`React should track nested 1`] = `
+exports[`React should target state 1`] = `
 <ul>
   <li>
     foo
@@ -60,7 +60,7 @@ exports[`React should track nested 1`] = `
 </ul>
 `;
 
-exports[`React should track nested 2`] = `
+exports[`React should target state 2`] = `
 <ul>
   <li>
     foo

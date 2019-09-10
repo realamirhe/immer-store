@@ -127,7 +127,7 @@ describe('React', () => {
 
     expect(tree.toJSON()).toMatchSnapshot()
   })
-  test.only('should track nested', () => {
+  test('should target state', () => {
     const config = createConfig({
       state: {
         foo: ['foo', 'bar'],
