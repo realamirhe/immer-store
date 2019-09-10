@@ -41,7 +41,7 @@ export interface BaseActions<S extends State, E extends BaseEffects> {
 }
 
 export interface BaseEffects {
-  [key: string]: (...args) => any
+  [key: string]: (...args) => any | BaseEffects
 }
 
 export type ActionsWithoutContext<U extends BaseActions<any, any>> = {
