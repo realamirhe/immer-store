@@ -82,7 +82,7 @@ export function createStateHook<C extends Config<any, any, any>>() {
         )
         // We subscribe to the accessed paths which causes a new render,
         // which again creates a new subscription
-        return instance.subscribe(tracker.getPaths(), forceUpdate, name)
+        return instance.subscribe(forceUpdate, tracker.getPaths(), name)
       })
 
       return tracker.getState()
@@ -108,8 +108,38 @@ export function createActionsHook<C extends Config<any, any, any>>() {
   }
 }
 
+export function createSelectorHook<C extends Config<any, any, any>>() {
+  return <T>(selector: (state: C['state']) => T): T => {
+    const instance = React.useContext(context)
+
+    if (instance) {
+      const [currentValue, updateState] = React.useState(
+        selector(instance.state)
+      )
+      const forceUpdate = React.useCallback(
+        () => updateState(selector(instance.state)),
+        []
+      )
+      React.useLayoutEffect(() => {
+        // We subscribe to any update
+        return instance.subscribe(forceUpdate)
+      })
+
+      return currentValue
+    }
+
+    throwMissingStoreError()
+
+    // @ts-ignore
+    return
+  }
+}
+
 // Default hook if you are not using Typescript
 export const useState = createStateHook()
 
 // Default hook if you are not using Typescript
 export const useActions = createActionsHook()
+
+// Default hook if you are not using Typescript
+export const useSelector = createSelectorHook()

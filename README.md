@@ -280,6 +280,20 @@ const SomeComponent: React.FC_ = () => {
 }
 ```
 
+## Reselect
+
+You can combine the popular [reselect]() library for cached computed state. **immer-store** exposes a **useSelector** hook that allows you to compute state:
+
+```tsx
+const SomeComponent: React.FC_ = () => {
+  const value = useSelector(reselectSelector)
+
+  return (
+    ...
+  )
+}
+```
+
 ## Debugging
 
 **immer-store** knows a lot about your application:

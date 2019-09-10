@@ -1,5 +1,30 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`React should allow usage of reselect 1`] = `
+<ul>
+  <li>
+    FOO
+  </li>
+  <li>
+    BAR
+  </li>
+</ul>
+`;
+
+exports[`React should allow usage of reselect 2`] = `
+<ul>
+  <li>
+    FOO
+  </li>
+  <li>
+    BAR
+  </li>
+  <li>
+    BAZ
+  </li>
+</ul>
+`;
+
 exports[`React should allow using hooks 1`] = `
 <h1>
   bar!

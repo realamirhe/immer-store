@@ -1,6 +1,6 @@
 {
   "name": "immer-store",
-  "version": "0.0.7",
+  "version": "0.0.9",
   "description": "Functional actions",
   "author": "Christian Alfoni <christianalfoni@gmail.com>",
   "license": "MIT",
@@ -45,6 +45,7 @@
     "react": "^16.9.0",
     "react-dom": "^16.9.0",
     "react-test-renderer": "^16.9.0",
+    "reselect": "^4.0.0",
     "ts-jest": "^24.0.2",
     "tslib": "^1.9.3",
     "typescript": "^3.6.2"

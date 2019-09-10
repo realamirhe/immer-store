@@ -1,6 +1,13 @@
-import { createStore, createConfig, createStateHook, Provider } from './'
+import {
+  createStore,
+  createConfig,
+  createStateHook,
+  Provider,
+  createSelectorHook,
+} from './'
 import * as React from 'react'
 import * as renderer from 'react-test-renderer'
+import { createSelector } from 'reselect'
 
 describe('React', () => {
   test('should allow using hooks', () => {
@@ -161,27 +168,37 @@ describe('React', () => {
 
     expect(tree.toJSON()).toMatchSnapshot()
   })
-  /*
-  test('should compute values', () => {
+  test('should allow usage of reselect', () => {
     const config = createConfig({
       state: {
-        foo: '',
-      },
-      computed: {
-        upperFoo: ({ foo }) => foo.toUpperCase(),
+        foo: ['foo', 'bar'],
       },
       actions: {
-        changeFoo: ({ state }) => {
-          state.foo = 'bar2'
+        updateFoo: ({ state }) => {
+          state.foo.push('baz')
         },
       },
     })
-    const useState = createStateHook<typeof config>()
-    const store = createStore(config)
-    const FooComponent: React.FunctionComponent = () => {
-      const state = useState()
 
-      return <h1>{state.object.foo ? state.object.foo : 'does not exist'}</h1>
+    const useSelector = createSelectorHook<typeof config>()
+    const store = createStore(config)
+
+    const getFoo = (state: typeof config['state']) => state.foo
+    const upperFooSelector = createSelector(
+      [getFoo],
+      (foo) => foo.map((text) => text.toUpperCase())
+    )
+
+    const FooComponent: React.FunctionComponent = () => {
+      const upperFoo = useSelector(upperFooSelector)
+
+      return (
+        <ul>
+          {upperFoo.map((text) => (
+            <li key={text}>{text}</li>
+          ))}
+        </ul>
+      )
     }
 
     const tree = renderer.create(
@@ -193,16 +210,9 @@ describe('React', () => {
     expect(tree).toMatchSnapshot()
 
     renderer.act(() => {
-      store.actions.addFoo()
-    })
-
-    expect(tree.toJSON()).toMatchSnapshot()
-
-    renderer.act(() => {
-      store.actions.removeFoo()
+      store.actions.updateFoo()
     })
 
     expect(tree.toJSON()).toMatchSnapshot()
   })
-  */
 })

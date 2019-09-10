@@ -12,8 +12,10 @@ import { log, configureUtils } from './utils'
 export {
   createStateHook,
   createActionsHook,
+  createSelectorHook,
   useState,
   useActions,
+  useSelector,
 } from './hooks'
 export { Provider } from './provider'
 export { IAction } from './types'
@@ -73,7 +75,7 @@ export function createStore<
   S extends State,
   E extends BaseEffects,
   A extends BaseActions<S, E>
->(config: Config<S, E, A>, options: Options = { debug: true }): Store<S, A> {
+>(config: Config<S, E, A>, options: Options = { debug: true }): Store<S, E, A> {
   if (
     process.env.NODE_ENV === 'production' ||
     process.env.NODE_ENV === 'test'
@@ -84,37 +86,51 @@ export function createStore<
   configureUtils(options)
 
   let currentState = finishDraft(createDraft(config.state))
-  const listeners = {}
+  const pathListeners = {}
+  const globalListeners: Function[] = []
 
   // Allows components to subscribe by passing in the paths they are tracking
-  function subscribe(paths: Set<string>, update: () => void, name: string) {
-    const currentPaths = Array.from(paths)
-    const subscription = {
-      update,
-      name,
-    }
-    // The created subscription is added to each path
-    // that it is interested
-    currentPaths.forEach((path) => {
-      if (!listeners[path]) {
-        listeners[path] = []
+  function subscribe(update: () => void, paths?: Set<string>, name?: string) {
+    // When a component listens to specific paths we create a subscription
+    if (paths) {
+      const currentPaths = Array.from(paths)
+      const subscription = {
+        update,
+        name,
       }
-      listeners[path].push(subscription)
-    })
-
-    // We return a dispose function to remove the subscription from the paths
-    return () => {
+      // The created subscription is added to each path
+      // that it is interested
       currentPaths.forEach((path) => {
-        listeners[path].splice(listeners[path].indexOf(subscription), 1)
+        if (!pathListeners[path]) {
+          pathListeners[path] = []
+        }
+        pathListeners[path].push(subscription)
       })
+
+      // We return a dispose function to remove the subscription from the paths
+      return () => {
+        currentPaths.forEach((path) => {
+          pathListeners[path].splice(
+            pathListeners[path].indexOf(subscription),
+            1
+          )
+        })
+      }
+      // Selectors just listens to any update as it uses immutability to compare values
+    } else {
+      globalListeners.push(update)
+
+      return () => {
+        globalListeners.splice(globalListeners.indexOf(update), 1)
+      }
     }
   }
 
   // Is used when mutations has been tracked and any subscribers should be notified
   function updateListeners(paths: Set<string>) {
     paths.forEach((path) => {
-      if (listeners[path]) {
-        listeners[path].forEach((subscription) => {
+      if (pathListeners[path]) {
+        pathListeners[path].forEach((subscription) => {
           log(
             LogType.RENDER,
             `component "${subscription.name}" due to change on "${path}"`
@@ -123,6 +139,7 @@ export function createStore<
         })
       }
     })
+    globalListeners.forEach((update) => update())
   }
 
   // Creates a new version of the state and passes any paths

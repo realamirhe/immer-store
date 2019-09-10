@@ -16,14 +16,14 @@ export interface IAction<Payload, C extends Config<any, any, any>> {
   ): any
 }
 
-export interface ISelector<S extends State> {
-  (state: S): any
-}
-
-export interface Store<S extends State, A extends BaseActions<any, any>> {
+export interface Store<
+  S extends State,
+  E extends BaseEffects,
+  A extends BaseActions<S, E>
+> {
   state: Immutable<Draft<S>>
   actions: ActionsWithoutContext<A>
-  subscribe(paths: Set<string>, update: () => void, name: string)
+  subscribe(update: () => void, paths?: Set<string>, name?: string)
 }
 
 export interface Config<
