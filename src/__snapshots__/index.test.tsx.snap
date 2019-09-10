@@ -48,3 +48,25 @@ exports[`React should render on object add and remove 3`] = `
   does not exist
 </h1>
 `;
+
+exports[`React should track nested 1`] = `
+<ul>
+  <li>
+    foo
+  </li>
+  <li>
+    bar
+  </li>
+</ul>
+`;
+
+exports[`React should track nested 2`] = `
+<ul>
+  <li>
+    foo
+  </li>
+  <li>
+    bar
+  </li>
+</ul>
+`;

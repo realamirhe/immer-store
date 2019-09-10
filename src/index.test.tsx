@@ -127,6 +127,45 @@ describe('React', () => {
 
     expect(tree.toJSON()).toMatchSnapshot()
   })
+  test.only('should track nested', () => {
+    const config = createConfig({
+      state: {
+        foo: ['foo', 'bar'],
+      },
+      actions: {
+        updateFoo: ({ state }) => {
+          state.foo.push('baz')
+        },
+      },
+    })
+    const useState = createStateHook<typeof config>()
+    const store = createStore(config)
+    const FooComponent: React.FunctionComponent = () => {
+      const foo = useState((state) => state.foo)
+
+      return (
+        <ul>
+          {foo.map((text) => (
+            <li key={text}>{text}</li>
+          ))}
+        </ul>
+      )
+    }
+
+    const tree = renderer.create(
+      <Provider store={store}>
+        <FooComponent />
+      </Provider>
+    )
+
+    expect(tree).toMatchSnapshot()
+
+    renderer.act(() => {
+      store.actions.updateFoo()
+    })
+
+    expect(tree.toJSON()).toMatchSnapshot()
+  })
   /*
   test('should compute values', () => {
     const config = createConfig({

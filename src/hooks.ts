@@ -7,7 +7,7 @@ import { createPathTracker, log } from './utils'
 
 // Creates a state access proxy which basically just tracks
 // what paths you are accessing in the state
-function createTracker(instance: Store<any, any, any>) {
+function createTracker(instance: any) {
   const paths = new Set<string>()
 
   return {
@@ -16,6 +16,14 @@ function createTracker(instance: Store<any, any, any>) {
         {},
         {
           get(_, prop) {
+            if (typeof instance.state[prop] === 'function') {
+              return (...args) => {
+                return instance.state[prop].call(
+                  createPathTracker(instance.state, [], paths),
+                  ...args
+                )
+              }
+            }
             paths.add(prop.toString())
             if (
               typeof instance.state[prop] === 'object' &&
@@ -43,7 +51,9 @@ function throwMissingStoreError() {
 
 // For typing support we allow you to create a state hook
 export function createStateHook<C extends Config<any, any, any, any>>() {
-  return (): C['state'] => {
+  function useState(): C['state']
+  function useState<T>(cb: (state: C['state']) => T): T
+  function useState() {
     // So that we can access the name of the component during development
     const {
       ReactCurrentOwner,
@@ -61,7 +71,11 @@ export function createStateHook<C extends Config<any, any, any, any>>() {
     if (instance) {
       // We create a tracker to figure out what state is actually being accessed
       // by this component
-      const tracker = React.useRef(createTracker(instance)).current
+      const tracker = React.useRef(
+        createTracker(
+          arguments[0] ? { state: arguments[0](instance.state) } : instance
+        )
+      ).current
 
       React.useLayoutEffect(() => {
         log(
@@ -75,11 +89,15 @@ export function createStateHook<C extends Config<any, any, any, any>>() {
         return instance.subscribe(tracker.getPaths(), forceUpdate, name)
       })
 
-      return tracker.getState()
+      return tracker.getState() as any
     }
 
     throwMissingStoreError()
+    // @ts-ignore
+    return
   }
+
+  return useState
 }
 
 // For typing support we allow you to create an actions hook
