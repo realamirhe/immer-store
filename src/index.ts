@@ -1,4 +1,5 @@
 import { createDraft, finishDraft, Immutable, Draft } from 'immer'
+import { createSelector } from 'reselect'
 import {
   State,
   LogType,
@@ -19,6 +20,8 @@ export {
 } from './hooks'
 export { Provider } from './provider'
 export { IAction } from './types'
+
+export const IS_PROXY = Symbol('IS_PROXY')
 
 // Creates the updated state and a list of paths changed after batched mutations
 function getUpdate(draft) {
@@ -198,7 +201,6 @@ export function createStore<
                 (aggr, key) => aggr[key],
                 currentDraft
               ) as object
-
               if (typeof prop === 'symbol') {
                 return target[prop]
               }
@@ -206,7 +208,7 @@ export function createStore<
               const newPath = path.concat(prop as string)
 
               if (typeof target[prop] === 'function') {
-                return (...args) => target[prop].call(proxy, ...args)
+                return target[prop].bind(createStateProxy(path))
               }
 
               if (typeof target[prop] === 'object' && target[prop] !== null) {
