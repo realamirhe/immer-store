@@ -118,10 +118,14 @@ export function createStore<
 
   // Is used when mutations has been tracked and any subscribers should be notified
   function updateListeners(paths: Set<string>) {
+    const listenersNotified = new Set()
     paths.forEach((path) => {
       if (pathListeners[path]) {
         pathListeners[path].forEach((subscription) => {
-          subscription.update()
+          if (!listenersNotified.has(subscription)) {
+            subscription.update()
+            listenersNotified.add(subscription)
+          }
         })
       }
     })
@@ -167,23 +171,31 @@ export function createStore<
           flushMutations(currentDraft, name)
           currentDraft = null
         })
+        return currentDraft
       }
-
-      configureDraft()
 
       // We call the defined function passing in the "context"
       const actionResult = func(
         {
           // We create a proxy so that we can prepare a new draft for the action no matter what.
           // If we are just pointing into state, deleting a root property or setting a root property
-          state: createStateProxy(currentDraft, [], (_, state, __, path) => {
-            if (!currentDraft) {
-              configureDraft()
-              return path.reduce((aggr, key) => aggr[key], currentDraft)
-            }
+          state: createStateProxy(
+            configureDraft(),
+            [],
+            function handle(_, state, __, path) {
+              if (!currentDraft) {
+                configureDraft()
+                return createStateProxy(
+                  path.reduce((aggr, key) => aggr[key], currentDraft),
+                  path,
+                  handle
+                )
+              }
 
-            return state
-          }),
+              return state
+            },
+            true
+          ),
           // We also pass in the effects
           // TODO: Use a proxy tracker here as well to track effects being called
           effects: config.effects,

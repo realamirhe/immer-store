@@ -135,27 +135,39 @@ describe('React', () => {
 
     expect(tree.toJSON()).toMatchSnapshot()
   })
-  test('should target state', () => {
+
+  test('should target state', async () => {
     const config = {
       state: {
-        foo: ['foo', 'bar'],
+        foo: [
+          {
+            title: 'foo',
+          },
+        ],
       },
       actions: {
-        updateFoo: ({ state }) => {
-          state.foo.push('baz')
+        updateFoo: async ({ state }) => {
+          const item = state.foo[0]
+          item.title = 'foo2'
+          await Promise.resolve()
+          item.title = 'foo3'
         },
       },
     }
-
     const useState = createStateHook<typeof config>()
     const store = createStore(config)
+    const Item: React.FunctionComponent<{ index: number }> = ({ index }) => {
+      const item = useState((state) => state.foo[index])
+
+      return <li>{item.title}</li>
+    }
     const FooComponent: React.FunctionComponent = () => {
-      const foo = useState((state) => state.foo)
+      const state = useState()
 
       return (
         <ul>
-          {foo.map((text) => (
-            <li key={text}>{text}</li>
+          {state.foo.map((item, index) => (
+            <Item key={item.title} index={index} />
           ))}
         </ul>
       )
@@ -169,12 +181,14 @@ describe('React', () => {
 
     expect(tree).toMatchSnapshot()
 
-    renderer.act(() => {
-      store.actions.updateFoo()
+    await renderer.act(async () => {
+      const result = store.actions.updateFoo()
+      expect(tree.toJSON()).toMatchSnapshot()
+      return result
     })
-
     expect(tree.toJSON()).toMatchSnapshot()
   })
+
   test('should allow async changes', async () => {
     const config = {
       state: {
@@ -182,7 +196,7 @@ describe('React', () => {
       },
       actions: {
         updateFoo: async ({ state }) => {
-          await Promise.resolve()
+          await new Promise((resolve) => setTimeout(resolve, 1))
           state.foo.push('baz')
         },
       },
@@ -191,11 +205,11 @@ describe('React', () => {
     const useState = createStateHook<typeof config>()
     const store = createStore(config)
     const FooComponent: React.FunctionComponent = () => {
-      const foo = useState((state) => state.foo)
+      const state = useState()
 
       return (
         <ul>
-          {foo.map((text) => (
+          {state.foo.map((text) => (
             <li key={text}>{text}</li>
           ))}
         </ul>

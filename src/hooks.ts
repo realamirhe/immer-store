@@ -3,11 +3,14 @@ import * as React from 'react'
 import { __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED } from 'react'
 import { context } from './provider'
 import { Store, LogType, Config, ActionsWithoutContext } from './types'
-import { createStateProxy, log } from './utils'
+import { log, createStateProxy } from './utils'
 
 // Creates a state access proxy which basically just tracks
 // what paths you are accessing in the state
-function createTracker(getState: () => any, targetPath: string[] = []) {
+function createTracker(
+  getState: () => Array<any> | object,
+  targetPath: string[] = []
+) {
   const paths = new Set<string>()
 
   return {
@@ -16,12 +19,13 @@ function createTracker(getState: () => any, targetPath: string[] = []) {
         getState(),
         targetPath,
         (type, state, prop, path) => {
-          if (type === 'get') {
+          if (type === 'get' && typeof state[prop] !== 'function') {
             paths.add(path.concat(prop).join('.'))
           }
 
           return state
-        }
+        },
+        true
       )
     },
     getPaths() {
@@ -62,18 +66,14 @@ export function createStateHook<C extends Config<any, any, any>>() {
 
       // This tracker grabs the initial path, added to any other paths actually accessed
       const targetState = arguments[0]
+      let targetPath: string[] = []
       if (targetState) {
         const targetTracker = createTracker(() => instance.state)
         targetState(targetTracker.getState())
-        const targetPath = (
-          Array.from(targetTracker.getPaths()).pop() || ''
-        ).split('.')
-        tracker = React.useRef(
-          createTracker(
-            () => targetPath.reduce((aggr, key) => aggr[key], instance.state),
-            targetPath
-          )
-        ).current
+        const lastTrackedPath = Array.from(targetTracker.getPaths()).pop()
+        targetPath = lastTrackedPath ? lastTrackedPath.split('.') : []
+
+        tracker = React.useRef(createTracker(() => instance.state, [])).current
       } else {
         tracker = React.useRef(createTracker(() => instance.state)).current
       }
@@ -96,7 +96,7 @@ export function createStateHook<C extends Config<any, any, any>>() {
         )
       })
 
-      return tracker.getState()
+      return targetPath.reduce((aggr, key) => aggr[key], tracker.getState())
     }
 
     throwMissingStoreError()
