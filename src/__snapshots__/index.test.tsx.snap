@@ -14,13 +14,21 @@ exports[`React should allow async changes 1`] = `
 exports[`React should allow async changes 2`] = `
 <ul>
   <li>
-    foo
+    foo2
   </li>
   <li>
     bar
   </li>
+</ul>
+`;
+
+exports[`React should allow async changes 3`] = `
+<ul>
   <li>
-    baz
+    foo23
+  </li>
+  <li>
+    bar
   </li>
 </ul>
 `;
@@ -110,12 +118,20 @@ exports[`React should target state 1`] = `
 exports[`React should target state 2`] = `
 <ul>
   <li>
-    foo
+    foo2
   </li>
 </ul>
 `;
 
 exports[`React should target state 3`] = `
+<ul>
+  <li>
+    foo3
+  </li>
+</ul>
+`;
+
+exports[`React should target state 4`] = `
 <ul>
   <li>
     foo3

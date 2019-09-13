@@ -4,6 +4,7 @@ import { __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED } from 'react'
 import { context } from './provider'
 import { Store, LogType, Config, ActionsWithoutContext } from './types'
 import { log, createStateProxy } from './utils'
+import { createDraft } from 'immer'
 
 // Creates a state access proxy which basically just tracks
 // what paths you are accessing in the state
@@ -24,8 +25,7 @@ function createTracker(
           }
 
           return state
-        },
-        true
+        }
       )
     },
     getPaths() {
@@ -68,14 +68,17 @@ export function createStateHook<C extends Config<any, any, any>>() {
       const targetState = arguments[0]
       let targetPath: string[] = []
       if (targetState) {
-        const targetTracker = createTracker(() => instance.state)
+        const targetTracker = createTracker(() => createDraft(instance.state))
         targetState(targetTracker.getState())
         const lastTrackedPath = Array.from(targetTracker.getPaths()).pop()
         targetPath = lastTrackedPath ? lastTrackedPath.split('.') : []
 
-        tracker = React.useRef(createTracker(() => instance.state, [])).current
+        tracker = React.useRef(
+          createTracker(() => createDraft(instance.state), [])
+        ).current
       } else {
-        tracker = React.useRef(createTracker(() => instance.state)).current
+        tracker = React.useRef(createTracker(() => createDraft(instance.state)))
+          .current
       }
 
       React.useLayoutEffect(() => {

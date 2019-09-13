@@ -6,10 +6,15 @@ export function configureUtils(options: Options) {
   _options = options
 }
 
-export function createStateProxy(state, path, getValue, isInitial = false) {
+export const IS_PROXY = Symbol('IS_PROXY')
+
+export function createStateProxy(state, path, getValue, attachProxy = false) {
   if (typeof state === 'object' && state !== null) {
-    return new Proxy(isInitial ? {} : state, {
-      get(target, prop, receiver) {
+    return new Proxy(attachProxy ? state : {}, {
+      get(_, prop) {
+        if (prop === IS_PROXY) {
+          return true
+        }
         if (
           prop === 'length' ||
           typeof prop === 'symbol' ||
@@ -20,15 +25,10 @@ export function createStateProxy(state, path, getValue, isInitial = false) {
 
         const latestState = getValue('get', state, prop, path)
 
-        const desc = Object.getOwnPropertyDescriptor(target, prop)
-        const value = Reflect.get(target, prop, receiver)
-
-        if (desc && !desc.writable && !desc.configurable) return value
-
         if (typeof latestState[prop] === 'function') {
           return (...args) => {
             return latestState[prop].call(
-              createStateProxy(latestState, path, getValue),
+              createStateProxy(latestState, path, getValue, true),
               ...args
             )
           }
@@ -49,6 +49,7 @@ export function createStateProxy(state, path, getValue, isInitial = false) {
       },
     })
   }
+
   return state
 }
 

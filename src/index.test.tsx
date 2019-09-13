@@ -4,6 +4,7 @@ import {
   Provider,
   createSelectorHook,
   IAction,
+  IS_PROXY,
 } from './'
 import * as React from 'react'
 import * as renderer from 'react-test-renderer'
@@ -181,12 +182,18 @@ describe('React', () => {
 
     expect(tree).toMatchSnapshot()
 
+    let promise
     await renderer.act(async () => {
-      const result = store.actions.updateFoo()
+      promise = store.actions.updateFoo()
+      await Promise.resolve()
       expect(tree.toJSON()).toMatchSnapshot()
-      return result
     })
-    expect(tree.toJSON()).toMatchSnapshot()
+    await renderer.act(async () => {
+      await promise
+      expect(tree.toJSON()).toMatchSnapshot()
+    })
+
+    expect(false)
   })
 
   test('should allow async changes', async () => {
@@ -196,8 +203,9 @@ describe('React', () => {
       },
       actions: {
         updateFoo: async ({ state }) => {
-          await new Promise((resolve) => setTimeout(resolve, 1))
-          state.foo.push('baz')
+          state.foo[0] += '2'
+          await Promise.resolve()
+          state.foo[0] += '3'
         },
       },
     }
@@ -216,6 +224,7 @@ describe('React', () => {
       )
     }
 
+    /*
     const tree = renderer.create(
       <Provider store={store}>
         <FooComponent />
@@ -223,12 +232,14 @@ describe('React', () => {
     )
 
     expect(tree).toMatchSnapshot()
-
+*/
     await renderer.act(async () => {
-      await store.actions.updateFoo()
+      const result = store.actions.updateFoo()
+      // expect(tree).toMatchSnapshot()
+      return result
     })
 
-    expect(tree.toJSON()).toMatchSnapshot()
+    // expect(tree.toJSON()).toMatchSnapshot()
   })
   test('should allow usage of reselect', () => {
     const config = {
