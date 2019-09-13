@@ -72,7 +72,7 @@ export function createStateHook<C extends Config<any, any, any>>() {
       let targetPath: string[] = []
       if (targetState) {
         const targetPaths = new Set<string>()
-        targetState(createPathTracker(instance.state, targetPaths))
+        targetState(createPathTracker(state, targetPaths))
         const lastTrackedPath = Array.from(targetPaths).pop()
         targetPath = lastTrackedPath ? lastTrackedPath.split('.') : []
       }
@@ -96,7 +96,8 @@ export function createStateHook<C extends Config<any, any, any>>() {
       return targetPath.length
         ? createPathTracker(
             targetPath.reduce((aggr, key) => aggr[key], state),
-            paths
+            paths,
+            targetPath
           )
         : createPathTracker(state, paths)
     }
