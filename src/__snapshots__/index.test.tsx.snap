@@ -33,6 +33,17 @@ exports[`React should allow async changes 3`] = `
 </ul>
 `;
 
+exports[`React should allow async changes 4`] = `
+<ul>
+  <li>
+    foo23
+  </li>
+  <li>
+    bar
+  </li>
+</ul>
+`;
+
 exports[`React should allow usage of reselect 1`] = `
 <ul>
   <li>
@@ -124,14 +135,6 @@ exports[`React should target state 2`] = `
 `;
 
 exports[`React should target state 3`] = `
-<ul>
-  <li>
-    foo3
-  </li>
-</ul>
-`;
-
-exports[`React should target state 4`] = `
 <ul>
   <li>
     foo3

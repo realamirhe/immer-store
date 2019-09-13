@@ -23,7 +23,11 @@ export interface Store<
 > {
   state: Immutable<Draft<S>>
   actions: ActionsWithoutContext<A>
-  subscribe(update: () => void, paths?: Set<string>, name?: string)
+  subscribe(
+    update: (state: Immutable<Draft<S>>) => void,
+    paths?: Set<string>,
+    name?: string
+  )
 }
 
 export interface Config<

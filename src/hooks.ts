@@ -2,36 +2,41 @@ import * as React from 'react'
 // @ts-ignore
 import { __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED } from 'react'
 import { context } from './provider'
-import { Store, LogType, Config, ActionsWithoutContext } from './types'
-import { log, createStateProxy } from './utils'
-import { createDraft } from 'immer'
+import { LogType, Config, ActionsWithoutContext } from './types'
+import { log } from './utils'
 
-// Creates a state access proxy which basically just tracks
-// what paths you are accessing in the state
-function createTracker(
-  getState: () => Array<any> | object,
-  targetPath: string[] = []
-) {
-  const paths = new Set<string>()
-
-  return {
-    getState() {
-      return createStateProxy(
-        getState(),
-        targetPath,
-        (type, state, prop, path) => {
-          if (type === 'get' && typeof state[prop] !== 'function') {
-            paths.add(path.concat(prop).join('.'))
-          }
-
-          return state
+function createPathTracker(state, paths: Set<string>, path: string[] = []) {
+  const proxy = new Proxy(
+    {},
+    {
+      get(_, prop) {
+        const target = path.reduce((aggr, key) => aggr[key], state) as object
+        if (typeof prop === 'symbol') {
+          return target[prop]
         }
-      )
-    },
-    getPaths() {
-      return paths
-    },
-  }
+
+        const newPath = path.concat(prop as string)
+        paths.add(newPath.join('.'))
+
+        if (typeof target[prop] === 'function') {
+          return target[prop].bind(createPathTracker(state, paths, path))
+        }
+
+        if (typeof target[prop] === 'object' && target[prop] !== null) {
+          return createPathTracker(state, paths, newPath)
+        }
+
+        return target[prop]
+      },
+      has(_, prop) {
+        const target = path.reduce((aggr, key) => aggr[key], state) as object
+
+        return Reflect.has(target, prop)
+      },
+    }
+  )
+
+  return proxy
 }
 
 function throwMissingStoreError() {
@@ -55,51 +60,45 @@ export function createStateHook<C extends Config<any, any, any>>() {
       ReactCurrentOwner.current.elementType &&
       ReactCurrentOwner.current.elementType.name
     // To force update the componnet
-    const [, updateState] = React.useState()
-    const forceUpdate = React.useCallback(() => updateState({}), [])
     const instance = React.useContext(context)
 
     if (instance) {
-      // We create a tracker to figure out what state is actually being accessed
-      // by this component
-      let tracker
+      const [state, updateState] = React.useState(instance.state)
 
       // This tracker grabs the initial path, added to any other paths actually accessed
       const targetState = arguments[0]
+      const paths = new Set<string>()
+
       let targetPath: string[] = []
       if (targetState) {
-        const targetTracker = createTracker(() => createDraft(instance.state))
-        targetState(targetTracker.getState())
-        const lastTrackedPath = Array.from(targetTracker.getPaths()).pop()
+        const targetPaths = new Set<string>()
+        targetState(createPathTracker(instance.state, targetPaths))
+        const lastTrackedPath = Array.from(targetPaths).pop()
         targetPath = lastTrackedPath ? lastTrackedPath.split('.') : []
-
-        tracker = React.useRef(
-          createTracker(() => createDraft(instance.state), [])
-        ).current
-      } else {
-        tracker = React.useRef(createTracker(() => createDraft(instance.state)))
-          .current
       }
 
       React.useLayoutEffect(() => {
         // We subscribe to the accessed paths which causes a new render,
         // which again creates a new subscription
         return instance.subscribe(
-          () => {
+          (update) => {
             log(
               LogType.COMPONENT_RENDER,
-              `"${name}", tracking "${Array.from(tracker.getPaths()).join(
-                ', '
-              )}"`
+              `"${name}", tracking "${Array.from(paths).join(', ')}"`
             )
-            forceUpdate()
+            updateState(update)
           },
-          tracker.getPaths(),
+          paths,
           name
         )
       })
 
-      return targetPath.reduce((aggr, key) => aggr[key], tracker.getState())
+      return targetPath.length
+        ? createPathTracker(
+            targetPath.reduce((aggr, key) => aggr[key], state),
+            paths
+          )
+        : createPathTracker(state, paths)
     }
 
     throwMissingStoreError()

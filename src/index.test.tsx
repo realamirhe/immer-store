@@ -4,7 +4,6 @@ import {
   Provider,
   createSelectorHook,
   IAction,
-  IS_PROXY,
 } from './'
 import * as React from 'react'
 import * as renderer from 'react-test-renderer'
@@ -224,7 +223,6 @@ describe('React', () => {
       )
     }
 
-    /*
     const tree = renderer.create(
       <Provider store={store}>
         <FooComponent />
@@ -232,14 +230,19 @@ describe('React', () => {
     )
 
     expect(tree).toMatchSnapshot()
-*/
+
+    let promise
     await renderer.act(async () => {
-      const result = store.actions.updateFoo()
-      // expect(tree).toMatchSnapshot()
-      return result
+      promise = store.actions.updateFoo()
+      await Promise.resolve()
+      expect(tree.toJSON()).toMatchSnapshot()
+    })
+    await renderer.act(async () => {
+      await promise
+      expect(tree.toJSON()).toMatchSnapshot()
     })
 
-    // expect(tree.toJSON()).toMatchSnapshot()
+    expect(tree.toJSON()).toMatchSnapshot()
   })
   test('should allow usage of reselect', () => {
     const config = {

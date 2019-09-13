@@ -1,4 +1,4 @@
-import { createDraft, finishDraft } from 'immer'
+import { createDraft, finishDraft, Immutable, Draft } from 'immer'
 import {
   State,
   LogType,
@@ -8,7 +8,7 @@ import {
   Config,
   Options,
 } from './types'
-import { log, configureUtils, createStateProxy, IS_PROXY } from './utils'
+import { log, configureUtils } from './utils'
 export {
   createStateHook,
   createActionsHook,
@@ -19,7 +19,6 @@ export {
 } from './hooks'
 export { Provider } from './provider'
 export { IAction } from './types'
-export { IS_PROXY } from './utils'
 
 // Creates the updated state and a list of paths changed after batched mutations
 function getUpdate(draft) {
@@ -81,7 +80,11 @@ export function createStore<
   const globalListeners: Function[] = []
 
   // Allows components to subscribe by passing in the paths they are tracking
-  function subscribe(update: () => void, paths?: Set<string>, name?: string) {
+  function subscribe(
+    update: (state: Immutable<Draft<S>>) => void,
+    paths?: Set<string>,
+    name?: string
+  ) {
     // When a component listens to specific paths we create a subscription
     if (paths) {
       const currentPaths = Array.from(paths)
@@ -120,24 +123,24 @@ export function createStore<
   // Is used when mutations has been tracked and any subscribers should be notified
   function updateListeners(paths: Set<string>) {
     const listenersNotified = new Set()
+
     paths.forEach((path) => {
       if (pathListeners[path]) {
         pathListeners[path].forEach((subscription) => {
           if (!listenersNotified.has(subscription)) {
-            subscription.update()
+            subscription.update(currentState)
             listenersNotified.add(subscription)
           }
         })
       }
     })
-    globalListeners.forEach((update) => update())
+    globalListeners.forEach((update) => update(currentState))
   }
 
   // Creates a new version of the state and passes any paths
   // affected to notify subscribers
   function flushMutations(draft, actionName) {
     const { paths, newState } = getUpdate(draft)
-
     currentState = newState
     if (paths.size) {
       log(
@@ -158,46 +161,88 @@ export function createStore<
   ) {
     target[key] = (payload) => {
       // We keep track of the current draft. It may change during async execution
-      let currentDraft
-      let count = 0
+      let currentDraft = createDraft(currentState)
+      let isAsync = false
+      let hasExecuted = false
 
-      // Used when accessing state to ensure we have a draft and prepare
-      // any async updates
-      function configureDraft() {
+      function next() {
+        if (hasExecuted) {
+          return
+        }
+
+        flushMutations(currentDraft, name)
         currentDraft = createDraft(currentState)
-        Promise.resolve().then(() => {
-          if (currentDraft) {
-            flushMutations(currentDraft, name)
-            currentDraft = null
-          }
-        })
+        isAsync = false
       }
 
-      configureDraft()
+      function asyncNext() {
+        if (isAsync) {
+          return
+        }
+
+        isAsync = true
+        Promise.resolve().then(next)
+      }
+
+      function finish() {
+        hasExecuted = true
+        flushMutations(currentDraft, name)
+      }
+
+      function createStateProxy(path: string[] = []) {
+        const proxy = new Proxy(
+          {},
+          {
+            get(_, prop) {
+              const target = path.reduce(
+                (aggr, key) => aggr[key],
+                currentDraft
+              ) as object
+
+              if (typeof prop === 'symbol') {
+                return target[prop]
+              }
+
+              const newPath = path.concat(prop as string)
+
+              if (typeof target[prop] === 'function') {
+                return (...args) => target[prop].call(proxy, ...args)
+              }
+
+              if (typeof target[prop] === 'object' && target[prop] !== null) {
+                return createStateProxy(newPath)
+              }
+
+              return target[prop]
+            },
+            set(_, prop, value) {
+              const target = path.reduce(
+                (aggr, key) => aggr[key],
+                currentDraft
+              ) as object
+              asyncNext()
+              return Reflect.set(target, prop, value)
+            },
+            deleteProperty(_, prop) {
+              const target = path.reduce(
+                (aggr, key) => aggr[key],
+                currentDraft
+              ) as object
+              asyncNext()
+              return Reflect.deleteProperty(target, prop)
+            },
+          }
+        )
+
+        return proxy
+      }
+
       // We call the defined function passing in the "context"
       const actionResult = func(
         {
           // We create a proxy so that we can prepare a new draft for the action no matter what.
           // If we are just pointing into state, deleting a root property or setting a root property
-          state: createStateProxy(currentDraft, [], function handle(
-            type,
-            state,
-            prop,
-            path
-          ) {
-            if (!currentDraft) {
-              configureDraft()
-              if (type === 'set' || type === 'delete') {
-                return path.reduce((aggr, key) => aggr[key], currentDraft)
-              }
-
-              const value = path.reduce((aggr, key) => aggr[key], currentDraft)
-
-              return createStateProxy(value, path, handle)
-            }
-
-            return state
-          }),
+          state: createStateProxy(),
           // We also pass in the effects
           // TODO: Use a proxy tracker here as well to track effects being called
           effects: config.effects,
@@ -207,10 +252,12 @@ export function createStore<
 
       // If the action returns a promise (probalby async) we wait for it to finish.
       // This indicates that it is time to flush out any mutations
-      if (currentDraft && !(actionResult instanceof Promise)) {
-        flushMutations(currentDraft, name)
-        currentDraft = null
-        // If the action is done we can immediately flush out mutations
+      if (actionResult instanceof Promise) {
+        actionResult.then(() => {
+          finish()
+        })
+      } else {
+        finish()
       }
 
       return actionResult
