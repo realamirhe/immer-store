@@ -94,11 +94,7 @@ export function createStateHook<C extends Config<any, any, any>>() {
       })
 
       return targetPath.length
-        ? createPathTracker(
-            targetPath.reduce((aggr, key) => aggr[key], state),
-            paths,
-            targetPath
-          )
+        ? createPathTracker(state, paths, targetPath)
         : createPathTracker(state, paths)
     }
 
