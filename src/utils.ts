@@ -6,30 +6,40 @@ export function configureUtils(options: Options) {
   _options = options
 }
 
-export function createPathTracker(state, path, paths, attachProxy = true) {
+export function createStateProxy(state, path, getValue, attachProxy = false) {
   return new Proxy(attachProxy ? state : {}, {
     get(_, prop) {
       if (prop === 'length' || typeof prop === 'symbol' || prop === 'inspect') {
         return state[prop]
       }
 
-      if (typeof state[prop] === 'function') {
+      const latestState = getValue('get', state, prop, path)
+
+      if (typeof latestState[prop] === 'function') {
         return (...args) => {
-          return state[prop].call(
-            createPathTracker(state, path, paths),
+          return latestState[prop].call(
+            createStateProxy(latestState, path, getValue, true),
             ...args
           )
         }
       }
 
       const newPath = path.concat(prop)
-      paths.add(newPath.join('.'))
 
-      if (typeof state[prop] === 'object' && state[prop] !== null) {
-        return createPathTracker(state[prop], newPath, paths)
+      if (typeof latestState[prop] === 'object' && latestState[prop] !== null) {
+        return createStateProxy(latestState[prop], newPath, getValue)
       }
 
-      return state[prop]
+      return latestState[prop]
+    },
+    deleteProperty(_, prop) {
+      const latestState = getValue('delete', state, prop, path)
+      return Reflect.deleteProperty(latestState, prop)
+    },
+    set(_, prop, ...rest) {
+      const latestState = getValue('set', state, prop, path)
+
+      return Reflect.set(latestState, prop, ...rest)
     },
   })
 }

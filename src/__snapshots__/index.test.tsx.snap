@@ -1,5 +1,27 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`React should allow async changes 1`] = `
+<ul>
+  <li>
+    foo
+  </li>
+  <li>
+    bar
+  </li>
+</ul>
+`;
+
+exports[`React should allow async changes 2`] = `
+<ul>
+  <li>
+    foo
+  </li>
+  <li>
+    bar
+  </li>
+</ul>
+`;
+
 exports[`React should allow usage of reselect 1`] = `
 <ul>
   <li>

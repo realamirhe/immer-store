@@ -3,16 +3,26 @@ import * as React from 'react'
 import { __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED } from 'react'
 import { context } from './provider'
 import { Store, LogType, Config, ActionsWithoutContext } from './types'
-import { createPathTracker, log } from './utils'
+import { createStateProxy, log } from './utils'
 
 // Creates a state access proxy which basically just tracks
 // what paths you are accessing in the state
-function createTracker(instance: { state: any }, targetPath: string[] = []) {
+function createTracker(getState: () => any, targetPath: string[] = []) {
   const paths = new Set<string>()
 
   return {
     getState() {
-      return createPathTracker(instance.state, targetPath, paths, false)
+      return createStateProxy(
+        getState(),
+        targetPath,
+        (type, state, prop, path) => {
+          if (type === 'get') {
+            paths.add(path.concat(prop).join('.'))
+          }
+
+          return state
+        }
+      )
     },
     getPaths() {
       return paths
@@ -53,36 +63,37 @@ export function createStateHook<C extends Config<any, any, any>>() {
       // This tracker grabs the initial path, added to any other paths actually accessed
       const targetState = arguments[0]
       if (targetState) {
-        const targetTracker = createTracker(instance)
+        const targetTracker = createTracker(() => instance.state)
         targetState(targetTracker.getState())
         const targetPath = (
           Array.from(targetTracker.getPaths()).pop() || ''
         ).split('.')
         tracker = React.useRef(
           createTracker(
-            {
-              state: targetPath.reduce(
-                (aggr, key) => aggr[key],
-                instance.state
-              ),
-            },
+            () => targetPath.reduce((aggr, key) => aggr[key], instance.state),
             targetPath
           )
         ).current
       } else {
-        tracker = React.useRef(createTracker(instance)).current
+        tracker = React.useRef(createTracker(() => instance.state)).current
       }
 
       React.useLayoutEffect(() => {
-        log(
-          LogType.COMPONENT_PATHS,
-          `"${Array.from(tracker.getPaths()).join(
-            ', '
-          )}" on component "${name}"`
-        )
         // We subscribe to the accessed paths which causes a new render,
         // which again creates a new subscription
-        return instance.subscribe(forceUpdate, tracker.getPaths(), name)
+        return instance.subscribe(
+          () => {
+            log(
+              LogType.COMPONENT_RENDER,
+              `"${name}", tracking "${Array.from(tracker.getPaths()).join(
+                ', '
+              )}"`
+            )
+            forceUpdate()
+          },
+          tracker.getPaths(),
+          name
+        )
       })
 
       return tracker.getState()

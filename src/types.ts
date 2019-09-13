@@ -39,7 +39,7 @@ export interface Config<
 export enum LogType {
   RENDER = 'RENDER',
   MUTATIONS = 'MUTATIONS',
-  COMPONENT_PATHS = 'COMPONENT PATHS',
+  COMPONENT_RENDER = 'COMPONENT RENDER',
 }
 
 export interface State {

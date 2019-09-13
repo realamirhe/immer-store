@@ -8,7 +8,7 @@ import {
   Config,
   Options,
 } from './types'
-import { log, configureUtils } from './utils'
+import { log, configureUtils, createStateProxy } from './utils'
 export {
   createStateHook,
   createActionsHook,
@@ -121,10 +121,6 @@ export function createStore<
     paths.forEach((path) => {
       if (pathListeners[path]) {
         pathListeners[path].forEach((subscription) => {
-          log(
-            LogType.RENDER,
-            `component "${subscription.name}" due to change on "${path}"`
-          )
           subscription.update()
         })
       }
@@ -138,8 +134,15 @@ export function createStore<
     const { paths, newState } = getUpdate(draft)
 
     currentState = newState
-    log(LogType.MUTATIONS, `from "${actionName}" - ${Array.from(paths)}`)
-    updateListeners(paths)
+    if (paths.size) {
+      log(
+        LogType.MUTATIONS,
+        `from "${actionName}" - "${Array.from(paths).join(', ')}"`
+      )
+      updateListeners(paths)
+    } else {
+      log(LogType.MUTATIONS, `but no paths changed`)
+    }
   }
 
   function createAction(
@@ -157,10 +160,8 @@ export function createStore<
 
       // Used when accessing state to ensure we have a draft and prepare
       // any async updates
-      function configureUpdate() {
-        if (!currentDraft) {
-          currentDraft = createDraft(currentState)
-        }
+      function configureDraft() {
+        currentDraft = createDraft(currentState)
         clearTimeout(timeout)
         timeout = setTimeout(() => {
           flushMutations(currentDraft, name)
@@ -168,28 +169,21 @@ export function createStore<
         })
       }
 
+      configureDraft()
+
       // We call the defined function passing in the "context"
       const actionResult = func(
         {
           // We create a proxy so that we can prepare a new draft for the action no matter what.
           // If we are just pointing into state, deleting a root property or setting a root property
-          state: new Proxy(
-            {},
-            {
-              get(_, prop) {
-                configureUpdate()
-                return currentDraft[prop]
-              },
-              deleteProperty(_, prop) {
-                configureUpdate()
-                return Reflect.deleteProperty(currentDraft, prop)
-              },
-              set(_, prop, ...rest) {
-                configureUpdate()
-                return Reflect.set(currentDraft, prop, ...rest)
-              },
+          state: createStateProxy(currentDraft, [], (_, state, __, path) => {
+            if (!currentDraft) {
+              configureDraft()
+              return path.reduce((aggr, key) => aggr[key], currentDraft)
             }
-          ),
+
+            return state
+          }),
           // We also pass in the effects
           // TODO: Use a proxy tracker here as well to track effects being called
           effects: config.effects,
@@ -200,26 +194,13 @@ export function createStore<
       // If the action returns a promise (probalby async) we wait for it to finish.
       // This indicates that it is time to flush out any mutations
       if (actionResult instanceof Promise) {
-        actionResult
-          .then(() => {
-            clearTimeout(timeout)
-            if (currentDraft) {
-              flushMutations(currentDraft, name)
-              currentDraft = null
-            }
-          })
-          .catch((error) => {
-            // There is a caveat. If you are to change state asynchronously you have to point to the
-            // actual state object object again, this is to activate a new draft. We could wrap this
-            // with proxies again, but seems unnecessary
-            if (error.message.indexOf('proxy that has been revoked') > 0) {
-              const message = `You are asynchronously changing state in the action "${name}". Make sure you point to "state" again as the previous state draft has been disposed`
-
-              throw new Error(message)
-            }
-
-            throw error
-          })
+        actionResult.then(() => {
+          clearTimeout(timeout)
+          if (currentDraft) {
+            flushMutations(currentDraft, name)
+            currentDraft = null
+          }
+        })
         // If the action is done we can immediately flush out mutations
       } else if (currentDraft) {
         clearTimeout(timeout)

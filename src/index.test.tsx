@@ -175,6 +175,47 @@ describe('React', () => {
 
     expect(tree.toJSON()).toMatchSnapshot()
   })
+  test('should allow async changes', async () => {
+    const config = {
+      state: {
+        foo: ['foo', 'bar'],
+      },
+      actions: {
+        updateFoo: async ({ state }) => {
+          await Promise.resolve()
+          state.foo.push('baz')
+        },
+      },
+    }
+
+    const useState = createStateHook<typeof config>()
+    const store = createStore(config)
+    const FooComponent: React.FunctionComponent = () => {
+      const foo = useState((state) => state.foo)
+
+      return (
+        <ul>
+          {foo.map((text) => (
+            <li key={text}>{text}</li>
+          ))}
+        </ul>
+      )
+    }
+
+    const tree = renderer.create(
+      <Provider store={store}>
+        <FooComponent />
+      </Provider>
+    )
+
+    expect(tree).toMatchSnapshot()
+
+    await renderer.act(async () => {
+      await store.actions.updateFoo()
+    })
+
+    expect(tree.toJSON()).toMatchSnapshot()
+  })
   test('should allow usage of reselect', () => {
     const config = {
       state: {
