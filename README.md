@@ -1,5 +1,7 @@
 # immer-store
 
+### NOTE! This is an experiement related to an article being published soon
+
 ## Motivation
 
 With the success of [Immer]() there is no doubt that developers has no problems writing pure code in an impure API. The mutation API of JavaScript is straight forward and expressive, but the default result is impure, going against the immutable model favoured by [React](). With **immer-store** we allow Immer to take even more control and basically gets rid of reducers, dispatching and action creators.
