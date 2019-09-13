@@ -123,11 +123,9 @@ export function createSelectorHook<C extends Config<any, any, any>>() {
     const instance = React.useContext(context)
 
     if (instance) {
-      const [currentValue, updateState] = React.useState(
-        selector(instance.state)
-      )
+      const [state, updateState] = React.useState(selector(instance.state))
       const forceUpdate = React.useCallback(
-        () => updateState(selector(instance.state)),
+        (update) => updateState(selector(update)),
         []
       )
       React.useLayoutEffect(() => {
@@ -135,7 +133,7 @@ export function createSelectorHook<C extends Config<any, any, any>>() {
         return instance.subscribe(forceUpdate)
       })
 
-      return currentValue
+      return state
     }
 
     throwMissingStoreError()
