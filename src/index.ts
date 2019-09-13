@@ -231,6 +231,14 @@ export function createStore<
               asyncNext()
               return Reflect.deleteProperty(target, prop)
             },
+            has(_, prop) {
+              const target = path.reduce(
+                (aggr, key) => aggr[key],
+                currentDraft
+              ) as object
+
+              return Reflect.has(target, prop)
+            },
           }
         )
 
