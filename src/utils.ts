@@ -9,3 +9,7 @@ export function configureUtils(options: Options) {
 export function log(type: LogType, message: string, ...data) {
   return _options.debug && console.log(`# ${type}: ${message}`, ...data)
 }
+
+export function getTarget(paths: string[], source: any) {
+  return paths.reduce((aggr, key) => aggr[key], source)
+}

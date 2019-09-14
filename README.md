@@ -1,10 +1,14 @@
 # immer-store
 
-### NOTE! This is an experiement related to an article being published soon
+## Project for article
+
+This project was created related to [this article](https://christianalfoni.com/articles/taking-immer-one-step-further). Please have a read to see what it is all about.
+
+**!NOTE** This project is not officially released, as it would require more testing and a maintainer.
 
 ## Motivation
 
-With the success of [Immer]() there is no doubt that developers has no problems writing pure code in an impure API. The mutation API of JavaScript is straight forward and expressive, but the default result is impure, going against the immutable model favoured by [React](). With **immer-store** we allow Immer to take even more control and basically gets rid of reducers, dispatching and action creators.
+With the success of [Immer](https://github.com/immerjs/immer) there is no doubt that developers has no problems writing pure code in an impure API. The mutation API of JavaScript is straight forward and expressive, but the default result is impure, going against the immutable model favoured by [React](). With **immer-store** we allow Immer to take even more control and basically gets rid of reducers, dispatching and action creators.
 
 **Instead of having to write this:**
 
@@ -50,12 +54,12 @@ Everything is still **immutable**.
 
 **immer-store** takes inspiration from the "api"-less API of [overmindjs](https://overmindjs.org). The codebase is rather small and commented, so you can take a dive into that. A quick summary though:
 
-- With a combination of chosen API and [Proxies]() **immer-store** exposes a state object to your actions that produces Immer drafts under the hood. The concept of a draft is completely hidden from you. You only think actions and state
+- With a combination of chosen API and [Proxies](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy) **immer-store** exposes a state object to your actions that produces Immer drafts under the hood. The concept of a draft is completely hidden from you. You only think actions and state
 - It supports changing state asynchronously in your actions
 - Because **immer-store** exposes an action API it also has access to the execution of the action and access to state. That means it is able to batch up mutations and notify components at optimal times to render
 - Instead of using **selectors** to expose state to components the **useState** hook tracks automatically what state you access and subscribes to it. That means there is no value comparison in every single hook on every mutation, but **immer-store** tells specifically what components needs to update related to matching batched set of mutations
 - **immer-store** has a concept of **effects** which is a simple injection mechanism allowing you to separate generic code from your application logic. It also simplifies testing
-- The library is written in [Typescript]() and has excellent support for typing with minimal effort
+- The library is written in [Typescript](https://www.typescriptlang.org/) and has excellent support for typing with minimal effort
 
 ## Get started
 
@@ -281,19 +285,27 @@ const SomeComponent: React.FC_ = () => {
 }
 ```
 
-## Reselect
+## Computed
 
-You can combine the popular [reselect]() library for cached computed state. **immer-store** exposes a **useSelector** hook that allows you to compute state:
+**immer-store** includes the [reselect](https://github.com/reduxjs/reselect) library for cached computed state. **immer-store** exposes a **createComputed** and **useCOmputed** hook that allows you to compute state:
 
 ```tsx
+const getTitle = (state) => state.title
+const titleUpperCase = createComputed(
+  [getTitle],
+  (title) => title.toUpperCase()
+)
+
 const SomeComponent: React.FC_ = () => {
-  const value = useSelector(reselectSelector)
+  const title = useComputed(titleUpperCase)
 
   return (
     ...
   )
 }
 ```
+
+The computed concept is just a tiny wrapper around reselect to manage updates.
 
 ## Debugging
 
@@ -308,5 +320,3 @@ It is possible to increase the insight even more to get a similar development to
 ## What is missing?
 
 - Immer provides the concept of snapshots and patching. This is available, just not implemented. The question is what kind of API you want. An example would be to expose a default effect which allows you to start tracking changes to a specific state path with a limit of number of changes. Then you could takes these snapshots and patch them back in
-- There is no concept of "computed state". The question again is API
-- There is no concept of "reaction". The question again is API

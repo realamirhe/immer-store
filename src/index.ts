@@ -9,7 +9,7 @@ import {
   Config,
   Options,
 } from './types'
-import { log, configureUtils } from './utils'
+import { log, configureUtils, getTarget } from './utils'
 export {
   createStateHook,
   createActionsHook,
@@ -257,19 +257,13 @@ export function createStore<
             getOwnPropertyDescriptor(_, prop) {
               // We only keep track of the path in this proxy and then
               // use that path on the current draft to grab the current draft state
-              const target = path.reduce(
-                (aggr, key) => aggr[key],
-                currentDraft
-              ) as object
+              const target = getTarget(path, currentDraft)
 
               return Reflect.getOwnPropertyDescriptor(target, prop)
             },
             // Just a proxy trap needed to target draft state
             ownKeys() {
-              const target = path.reduce(
-                (aggr, key) => aggr[key],
-                currentDraft
-              ) as object
+              const target = getTarget(path, currentDraft)
 
               return Reflect.ownKeys(target)
             },
@@ -281,10 +275,7 @@ export function createStore<
                 return currentState
               }
 
-              const target = path.reduce(
-                (aggr, key) => aggr[key],
-                currentDraft
-              ) as object
+              const target = getTarget(path, currentDraft)
 
               // We do not need to handle symbols
               if (typeof prop === 'symbol') {
@@ -329,10 +320,8 @@ export function createStore<
             // This is a proxy trap for assigning values, where we want to perform
             // the assignment on the draft target and also prepare async draft
             set(_, prop, value) {
-              const target = path.reduce(
-                (aggr, key) => aggr[key],
-                currentDraft
-              ) as object
+              const target = getTarget(path, currentDraft)
+
               asyncNext()
               log(
                 LogType.MUTATION,
@@ -343,10 +332,8 @@ export function createStore<
             },
             // This is a proxy trap for deleting values, same stuff
             deleteProperty(_, prop) {
-              const target = path.reduce(
-                (aggr, key) => aggr[key],
-                currentDraft
-              ) as object
+              const target = getTarget(path, currentDraft)
+
               asyncNext()
               log(
                 LogType.MUTATION,
@@ -356,10 +343,7 @@ export function createStore<
             },
             // Just a trap we need to handle
             has(_, prop) {
-              const target = path.reduce(
-                (aggr, key) => aggr[key],
-                currentDraft
-              ) as object
+              const target = getTarget(path, currentDraft)
 
               return Reflect.has(target, prop)
             },

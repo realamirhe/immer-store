@@ -3,7 +3,7 @@ import * as React from 'react'
 import { __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED } from 'react'
 import { context } from './provider'
 import { LogType, Config, ActionsWithoutContext } from './types'
-import { log } from './utils'
+import { log, getTarget } from './utils'
 
 // This proxy manages tracking what components are looking at
 function createPathTracker(state, paths: Set<string>, path: string[] = []) {
@@ -18,7 +18,7 @@ function createPathTracker(state, paths: Set<string>, path: string[] = []) {
       // We only track the current path in the proxy and we have access to root state,
       // by reducing the path we quickly get to the property asked for. This is used
       // throughout this proxy
-      const target = path.reduce((aggr, key) => aggr[key], state) as object
+      const target = getTarget(path, state)
 
       Object.defineProperty(
         proxyObject,
@@ -31,12 +31,12 @@ function createPathTracker(state, paths: Set<string>, path: string[] = []) {
     },
     // Just make sure we proxy the keys from the actual state
     ownKeys() {
-      const target = path.reduce((aggr, key) => aggr[key], state) as object
+      const target = getTarget(path, state)
 
       return Reflect.ownKeys(target)
     },
     get(_, prop) {
-      const target = path.reduce((aggr, key) => aggr[key], state) as object
+      const target = getTarget(path, state)
 
       // We do not track symbols
       if (typeof prop === 'symbol') {
@@ -62,7 +62,7 @@ function createPathTracker(state, paths: Set<string>, path: string[] = []) {
     },
     // This trap must also be proxied to the target state
     has(_, prop) {
-      const target = path.reduce((aggr, key) => aggr[key], state) as object
+      const target = getTarget(path, state)
 
       return Reflect.has(target, prop)
     },
