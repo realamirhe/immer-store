@@ -44,7 +44,7 @@ exports[`React should allow async changes 4`] = `
 </ul>
 `;
 
-exports[`React should allow usage of reselect 1`] = `
+exports[`React should allow usage of computed 1`] = `
 <ul>
   <li>
     FOO
@@ -55,7 +55,7 @@ exports[`React should allow usage of reselect 1`] = `
 </ul>
 `;
 
-exports[`React should allow usage of reselect 2`] = `
+exports[`React should allow usage of computed 2`] = `
 <ul>
   <li>
     FOO
@@ -96,6 +96,40 @@ exports[`React should handle arrays 2`] = `
   </li>
   <li>
     baz
+  </li>
+</ul>
+`;
+
+exports[`React should handle cross async action changes 1`] = `
+<h1>
+  bar121
+</h1>
+`;
+
+exports[`React should handle objects 1`] = `
+<ul>
+  <li>
+    bar
+  </li>
+  <li>
+    baz
+  </li>
+  <li>
+    boing
+  </li>
+</ul>
+`;
+
+exports[`React should handle objects 2`] = `
+<ul>
+  <li>
+    BAR
+  </li>
+  <li>
+    BAZ
+  </li>
+  <li>
+    BOING
   </li>
 </ul>
 `;

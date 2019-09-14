@@ -2,15 +2,17 @@ import {
   createStore,
   createStateHook,
   Provider,
-  createSelectorHook,
+  createComputedHook,
   IAction,
+  createComputed,
 } from './'
 import * as React from 'react'
 import * as renderer from 'react-test-renderer'
-import { createSelector } from 'reselect'
+
+const waitForUseEffect = () => new Promise((resolve) => setTimeout(resolve))
 
 describe('React', () => {
-  test('should allow using hooks', () => {
+  test('should allow using hooks', async () => {
     let renderCount = 0
     const config = {
       state: {
@@ -40,14 +42,15 @@ describe('React', () => {
 
     expect(renderCount).toBe(1)
 
-    renderer.act(() => {
+    await renderer.act(async () => {
+      await waitForUseEffect()
       store.actions.updateFoo()
     })
 
     expect(renderCount).toBe(2)
     expect(tree.toJSON()).toMatchSnapshot()
   })
-  test('should handle arrays', () => {
+  test('should handle arrays', async () => {
     const config = {
       state: {
         foo: ['foo', 'bar'],
@@ -80,13 +83,60 @@ describe('React', () => {
 
     expect(tree).toMatchSnapshot()
 
-    renderer.act(() => {
+    await renderer.act(async () => {
+      await waitForUseEffect()
       store.actions.updateFoo()
     })
 
     expect(tree.toJSON()).toMatchSnapshot()
   })
-  test('should render on object add and remove', () => {
+  test('should handle objects', async () => {
+    const config = {
+      state: {
+        foo: {
+          foo: 'bar',
+          bar: 'baz',
+          baz: 'boing',
+        },
+      },
+      actions: {
+        updateFoo: ({ state }) => {
+          Object.keys(state.foo).forEach((key) => {
+            state.foo[key] = state.foo[key].toUpperCase()
+          })
+        },
+      },
+    }
+    const useState = createStateHook<typeof config>()
+    const store = createStore(config)
+    const FooComponent: React.FunctionComponent = () => {
+      const state = useState()
+
+      return (
+        <ul>
+          {Object.values(state.foo).map((text) => (
+            <li key={text}>{text}</li>
+          ))}
+        </ul>
+      )
+    }
+
+    const tree = renderer.create(
+      <Provider store={store}>
+        <FooComponent />
+      </Provider>
+    )
+
+    expect(tree).toMatchSnapshot()
+
+    await renderer.act(async () => {
+      await waitForUseEffect()
+      store.actions.updateFoo()
+    })
+
+    expect(tree.toJSON()).toMatchSnapshot()
+  })
+  test('should render on object add and remove', async () => {
     const addFoo: Action = ({ state }) => {
       state.object.foo = 'bar'
     }
@@ -123,13 +173,15 @@ describe('React', () => {
 
     expect(tree).toMatchSnapshot()
 
-    renderer.act(() => {
+    await renderer.act(async () => {
+      await waitForUseEffect()
       store.actions.addFoo()
     })
 
     expect(tree.toJSON()).toMatchSnapshot()
 
-    renderer.act(() => {
+    await renderer.act(async () => {
+      await waitForUseEffect()
       store.actions.removeFoo()
     })
 
@@ -183,6 +235,7 @@ describe('React', () => {
 
     let promise
     await renderer.act(async () => {
+      await waitForUseEffect()
       promise = store.actions.updateFoo()
       await Promise.resolve()
       expect(tree.toJSON()).toMatchSnapshot()
@@ -233,6 +286,7 @@ describe('React', () => {
 
     let promise
     await renderer.act(async () => {
+      await waitForUseEffect()
       promise = store.actions.updateFoo()
       await Promise.resolve()
       expect(tree.toJSON()).toMatchSnapshot()
@@ -244,7 +298,49 @@ describe('React', () => {
 
     expect(tree.toJSON()).toMatchSnapshot()
   })
-  test('should allow usage of reselect', () => {
+  test('should handle cross async action changes', async () => {
+    const config = {
+      state: {
+        foo: 'bar',
+      },
+      actions: {
+        updateFoo: async ({ state }) => {
+          state.foo += '1'
+          await new Promise((resolve) => setTimeout(resolve))
+          state.foo += '1'
+        },
+        updateFoo2: async ({ state }) => {
+          await Promise.resolve()
+          state.foo += '2'
+        },
+      },
+    }
+
+    const useState = createStateHook<typeof config>()
+    const store = createStore(config)
+    const FooComponent: React.FunctionComponent = () => {
+      const state = useState()
+
+      return <h1>{state.foo}</h1>
+    }
+
+    const tree = renderer.create(
+      <Provider store={store}>
+        <FooComponent />
+      </Provider>
+    )
+
+    await renderer.act(async () => {
+      await waitForUseEffect()
+      return Promise.all([
+        store.actions.updateFoo(),
+        store.actions.updateFoo2(),
+      ])
+    })
+
+    expect(tree.toJSON()).toMatchSnapshot()
+  })
+  test('should allow usage of computed', async () => {
     const config = {
       state: {
         foo: ['foo', 'bar'],
@@ -256,17 +352,16 @@ describe('React', () => {
       },
     }
 
-    const useSelector = createSelectorHook<typeof config>()
+    const useComputed = createComputedHook<typeof config>()
     const store = createStore(config)
 
     const getFoo = (state: typeof config['state']) => state.foo
-    const upperFooSelector = createSelector(
-      [getFoo],
-      (foo) => foo.map((text) => text.toUpperCase())
+    const upperFooSelector = createComputed([getFoo], (foo) =>
+      foo.map((text) => text.toUpperCase())
     )
 
     const FooComponent: React.FunctionComponent = () => {
-      const upperFoo = useSelector(upperFooSelector)
+      const upperFoo = useComputed(upperFooSelector)
 
       return (
         <ul>
@@ -285,7 +380,8 @@ describe('React', () => {
 
     expect(tree).toMatchSnapshot()
 
-    renderer.act(() => {
+    await renderer.act(async () => {
+      await waitForUseEffect()
       store.actions.updateFoo()
     })
 

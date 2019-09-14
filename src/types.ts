@@ -42,7 +42,8 @@ export interface Config<
 
 export enum LogType {
   RENDER = 'RENDER',
-  MUTATIONS = 'MUTATIONS',
+  MUTATION = 'MUTATION',
+  FLUSH = 'FLUSH',
   COMPONENT_RENDER = 'COMPONENT RENDER',
 }
 

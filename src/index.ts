@@ -13,18 +13,41 @@ import { log, configureUtils } from './utils'
 export {
   createStateHook,
   createActionsHook,
-  createSelectorHook,
+  createComputedHook,
   useState,
   useActions,
-  useSelector,
+  useComputed,
 } from './hooks'
 export { Provider } from './provider'
 export { IAction } from './types'
 
-export const IS_PROXY = Symbol('IS_PROXY')
+export const GET_BASE_STATE = Symbol('GET_BASE_STATE')
 
-// Creates the updated state and a list of paths changed after batched mutations
-function getUpdate(draft) {
+// @ts-ignore
+export const createComputed: typeof createSelector = (...args: any[]) => {
+  // @ts-ignore
+  const selector = createSelector(...args)
+
+  return (state) => selector(state[GET_BASE_STATE] || state)
+}
+
+// Used to give debugging information about what type of mutations
+// are being performed
+const arrayMutations = new Set([
+  'push',
+  'shift',
+  'pop',
+  'unshift',
+  'splice',
+  'reverse',
+  'sort',
+  'copyWithin',
+])
+
+// Finishes the draft passed in and produces a SET of
+// state paths affected by this draft. This will be used
+// to match any paths subscribed to by components
+function getNewStateAndChangedPaths(draft) {
   const paths = new Set<string>()
 
   const newState = finishDraft(draft, (operations) => {
@@ -42,7 +65,7 @@ function getUpdate(draft) {
 }
 
 // Creates a nested structure and handling functions with a factory
-// Used by actions and computed
+// Used to create actions
 function createNestedStructure(
   structure: object,
   factory: (target: object, key: string, path: string, func: Function) => any,
@@ -69,6 +92,7 @@ export function createStore<
   E extends BaseEffects,
   A extends BaseActions<S, E>
 >(config: Config<S, E, A>, options: Options = { debug: true }): Store<S, E, A> {
+  // We force disable debugging in production and in test
   if (
     process.env.NODE_ENV === 'production' ||
     process.env.NODE_ENV === 'test'
@@ -78,11 +102,17 @@ export function createStore<
 
   configureUtils(options)
 
+  // We create the initial immutable state
   let currentState = finishDraft(createDraft(config.state))
+
+  // These listeners are for components, which subscribes to paths
   const pathListeners = {}
+
+  // These listeners are for computed which subscribes to any update
   const globalListeners: Function[] = []
 
-  // Allows components to subscribe by passing in the paths they are tracking
+  // Allows components to subscribe by passing in the paths they are tracking,
+  // also computed subscribes here, though without paths
   function subscribe(
     update: (state: Immutable<Draft<S>>) => void,
     paths?: Set<string>,
@@ -113,8 +143,8 @@ export function createStore<
           )
         })
       }
-      // Selectors just listens to any update as it uses immutability to compare values
     } else {
+      // Computed just listens to any update as it uses immutability to compare values
       globalListeners.push(update)
 
       return () => {
@@ -127,35 +157,44 @@ export function createStore<
   function updateListeners(paths: Set<string>) {
     const listenersNotified = new Set()
 
+    // We trigger path subscribers, components
     paths.forEach((path) => {
       if (pathListeners[path]) {
         pathListeners[path].forEach((subscription) => {
           if (!listenersNotified.has(subscription)) {
-            subscription.update(currentState)
             listenersNotified.add(subscription)
+            subscription.update(currentState)
           }
         })
       }
     })
+
+    // We trigger global subscribers, computed
     globalListeners.forEach((update) => update(currentState))
   }
 
   // Creates a new version of the state and passes any paths
   // affected to notify subscribers
-  function flushMutations(draft, actionName) {
-    const { paths, newState } = getUpdate(draft)
+  function flushMutations(draft) {
+    const { newState, paths } = getNewStateAndChangedPaths(draft)
     currentState = newState
     if (paths.size) {
       log(
-        LogType.MUTATIONS,
-        `from "${actionName}" - "${Array.from(paths).join(', ')}"`
+        LogType.FLUSH,
+        `the following paths: "${Array.from(paths).join(', ')}"`
       )
       updateListeners(paths)
     } else {
-      log(LogType.MUTATIONS, `but no paths changed`)
+      log(LogType.FLUSH, `but no paths changed`)
     }
   }
 
+  // We keep track of the current draft globally. This ensures that all actions
+  // always points to the latest draft produced, even when running async
+  let currentDraft = createDraft(currentState)
+
+  // This is the factory for creating actions. It wraps the action from the
+  // developer and injects state and effects. It also manages draft updates
   function createAction(
     target: object,
     key: string,
@@ -163,21 +202,33 @@ export function createStore<
     func: (...args) => any
   ) {
     target[key] = (payload) => {
-      // We keep track of the current draft. It may change during async execution
-      let currentDraft = createDraft(currentState)
+      // We want to schedule an async update of the draft whenever
+      // a mutation occurs. This just ensures that a new draft is ready
+      // when the action continues running. We do not want to create
+      // it multiple times though, so we keep a flag to ensure we only
+      // trigger it once per cycle
       let isAsync = false
+
+      // We also want a flag to indicate that the action is done running, this
+      // ensure any async draft requests are prevented when there is no need for one
       let hasExecuted = false
 
+      // This function indicates that mutations may have been performed
+      // and it is time to flush out mutations and create a new draft
       function next() {
         if (hasExecuted) {
           return
         }
 
-        flushMutations(currentDraft, name)
+        flushMutations(currentDraft)
         currentDraft = createDraft(currentState)
         isAsync = false
       }
 
+      // Whenever a mutation is performed we trigger this function. We use
+      // a mutation to indicate this as we might have multiple async steps
+      // and only hook to know when a draft is due is to prepare creation of the
+      // next draft when working on the current one
       function asyncNext() {
         if (isAsync) {
           return
@@ -187,52 +238,123 @@ export function createStore<
         Promise.resolve().then(next)
       }
 
+      // This function is called when the action is done execution
+      // Just flush out all mutations and prepare a new draft for
+      // any next action being triggered
       function finish() {
+        next()
         hasExecuted = true
-        flushMutations(currentDraft, name)
       }
 
-      function createStateProxy(path: string[] = []) {
+      // This is the proxy the manages the drafts
+      function createDraftProxy(path: string[] = []) {
+        // We proxy an empty object as proxying the draft itself will
+        // cause revoke/invariant issues
         const proxy = new Proxy(
           {},
           {
-            get(_, prop) {
+            // Just a proxy trap needed to target draft state
+            getOwnPropertyDescriptor(_, prop) {
+              // We only keep track of the path in this proxy and then
+              // use that path on the current draft to grab the current draft state
               const target = path.reduce(
                 (aggr, key) => aggr[key],
                 currentDraft
               ) as object
+
+              return Reflect.getOwnPropertyDescriptor(target, prop)
+            },
+            // Just a proxy trap needed to target draft state
+            ownKeys() {
+              const target = path.reduce(
+                (aggr, key) => aggr[key],
+                currentDraft
+              ) as object
+
+              return Reflect.ownKeys(target)
+            },
+            get(_, prop) {
+              // Related to using computed in an action we rather want to use
+              // the base immutable state. We do not want to allow mutations inside
+              // a computed and the returned result should not be mutated either
+              if (prop === GET_BASE_STATE) {
+                return currentState
+              }
+
+              const target = path.reduce(
+                (aggr, key) => aggr[key],
+                currentDraft
+              ) as object
+
+              // We do not need to handle symbols
               if (typeof prop === 'symbol') {
                 return target[prop]
               }
 
+              // We produce the new path
               const newPath = path.concat(prop as string)
 
+              // If we point to a function we need to handle that by
+              // returning a new function which manages a couple of things
               if (typeof target[prop] === 'function') {
-                return target[prop].bind(createStateProxy(path))
+                return (...args) => {
+                  // If we are performing a mutation, which happens
+                  // to arrays, we want to handle that
+                  if (arrayMutations.has(prop.toString())) {
+                    // First by preparing for a new async draft, as this is a mutation
+                    asyncNext()
+                    log(
+                      LogType.MUTATION,
+                      `${name} did a ${prop
+                        .toString()
+                        .toUpperCase()} on path "${path.join('.')}"`,
+                      ...args
+                    )
+                  }
+
+                  // Then we bind the call of the function to a new draftProxy so
+                  // that we keep proxying
+                  return target[prop].call(createDraftProxy(path), ...args)
+                }
               }
 
+              // If object, array or function we return it in a wrapped proxy
               if (typeof target[prop] === 'object' && target[prop] !== null) {
-                return createStateProxy(newPath)
+                return createDraftProxy(newPath)
               }
 
+              // Or we just return the value
               return target[prop]
             },
+            // This is a proxy trap for assigning values, where we want to perform
+            // the assignment on the draft target and also prepare async draft
             set(_, prop, value) {
               const target = path.reduce(
                 (aggr, key) => aggr[key],
                 currentDraft
               ) as object
               asyncNext()
+              log(
+                LogType.MUTATION,
+                `${name} did a SET on path "${path.join('.')}"`,
+                value
+              )
               return Reflect.set(target, prop, value)
             },
+            // This is a proxy trap for deleting values, same stuff
             deleteProperty(_, prop) {
               const target = path.reduce(
                 (aggr, key) => aggr[key],
                 currentDraft
               ) as object
               asyncNext()
+              log(
+                LogType.MUTATION,
+                `${name} did a DELETE on path "${path.join('.')}"`
+              )
               return Reflect.deleteProperty(target, prop)
             },
+            // Just a trap we need to handle
             has(_, prop) {
               const target = path.reduce(
                 (aggr, key) => aggr[key],
@@ -250,23 +372,31 @@ export function createStore<
       // We call the defined function passing in the "context"
       const actionResult = func(
         {
-          // We create a proxy so that we can prepare a new draft for the action no matter what.
-          // If we are just pointing into state, deleting a root property or setting a root property
-          state: createStateProxy(),
-          // We also pass in the effects
-          // TODO: Use a proxy tracker here as well to track effects being called
+          state: createDraftProxy(),
+          // We also pass in the effects. We could also use a proxy here to
+          // track execution of effects, useful for debugging
           effects: config.effects,
         },
+        // And we pass whatever payload was passed to the original action
         payload
       )
 
-      // If the action returns a promise (probalby async) we wait for it to finish.
-      // This indicates that it is time to flush out any mutations
+      // If the action returns a promise (probably async) we wait for it to finish.
+      // This indicates that it is time to flush out any mutations and indiciate a
+      // stop of execution
       if (actionResult instanceof Promise) {
-        actionResult.then(() => {
-          finish()
-        })
+        actionResult
+          .then(() => {
+            finish()
+          })
+          .catch(() => console.log('error', name))
       } else {
+        // If action stops synchronously we immediately finish up
+        // as those mutations needs to be notified to components.
+        // Basically handles inputs. A change to an input must run
+        // completely synchronously. That means you can never change
+        // the value of an input in your state store with async/await.
+        // Not special for this library, just the way it is
         finish()
       }
 
