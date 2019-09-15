@@ -387,4 +387,51 @@ describe('React', () => {
 
     expect(tree.toJSON()).toMatchSnapshot()
   })
+  test('should keep reference on proxies when same object to manage comparison', async () => {
+    let objectRenderCount = 0
+    const config = {
+      state: {
+        foo: 'bar',
+        objects: [{}],
+      },
+      actions: {
+        updateFoo: ({ state }) => {
+          state.foo = 'bar2'
+        },
+      },
+    }
+
+    const useState = createStateHook<typeof config>()
+    const store = createStore(config)
+    const ObjectComponent = React.memo<{ object: object }>(({ object }) => {
+      objectRenderCount++
+
+      return <div></div>
+    })
+    const FooComponent: React.FunctionComponent = () => {
+      const state = useState()
+
+      return (
+        <div>
+          <h1>{state.foo}</h1>
+          {state.objects.map((object, index) => (
+            <ObjectComponent key={index} object={object} />
+          ))}
+        </div>
+      )
+    }
+
+    renderer.create(
+      <Provider store={store}>
+        <FooComponent />
+      </Provider>
+    )
+
+    await renderer.act(async () => {
+      await waitForUseEffect()
+      store.actions.updateFoo()
+    })
+
+    expect(objectRenderCount).toBe(1)
+  })
 })

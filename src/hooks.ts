@@ -6,7 +6,11 @@ import { LogType, Config, ActionsWithoutContext } from './types'
 import { log, getTarget } from './utils'
 
 // This proxy manages tracking what components are looking at
-function createPathTracker(state, paths: Set<string>, path: string[] = []) {
+function createPathTracker(
+  state,
+  tracker: { paths: Set<string>; cache?: WeakMap<object, object> },
+  path: string[] = []
+) {
   // We can not proxy the state itself because that is already a proxy that will be
   // revoked, also causing this proxy to be revoked. Also the state protects itself
   // with "configurable: false" which creates an invarient
@@ -44,17 +48,33 @@ function createPathTracker(state, paths: Set<string>, path: string[] = []) {
       }
 
       const newPath = path.concat(prop as string)
-      paths.add(newPath.join('.'))
+      tracker.paths.add(newPath.join('.'))
 
       // If we are calling a function, for example "map" we bind that to a new
       // pathTracker so that we keep proxying the iteration
       if (typeof target[prop] === 'function') {
-        return target[prop].bind(createPathTracker(state, paths, path))
+        return target[prop].bind(createPathTracker(state, tracker, path))
       }
 
       // If we have an array, object or function we create a proxy around it
       if (typeof target[prop] === 'object' && target[prop] !== null) {
-        return createPathTracker(state, paths, newPath)
+        // We first check if this object already has a proxy, so that we ensure
+        // the equality is kept. If not, we create a new proxy and add it if
+        // we have a cache. We do not use a cache on targeted state, as that only
+        // triggers when the targeted state actually changes
+        const cached = tracker.cache && tracker.cache.get(target[prop])
+
+        if (cached) {
+          return cached
+        }
+
+        const proxy = createPathTracker(state, tracker, newPath)
+
+        if (tracker.cache) {
+          tracker.cache.set(target[prop], proxy)
+        }
+
+        return proxy
       }
 
       // Any plain value we return as normal
@@ -113,12 +133,21 @@ export function createStateHook<C extends Config<any, any, any>>() {
         []
       )
 
+      // We create a track which holds the current paths and also a proxy cache.
+      // This cache ensures that same objects has the same proxies, which is
+      // important for comparison in React
+      const tracker = React.useRef({
+        paths: new Set<string>(),
+        cache: new WeakMap<object, object>(),
+      })
+
+      // We always clear out the paths before rendering, so that
+      // we can collect new paths
+      tracker.current.paths.clear()
+
       // If we are targeting state (nested tracking) that would be a callback as first argument
       // to our "useState" hook
       const targetState = arguments[0]
-
-      // We prepare a SET to collect the paths accessed, which we will subscribe to
-      const paths = new Set<string>()
 
       // By default we expose the whole state, though if a callback is received
       // this targetPath will be replaced with whatever path we tracked to expose
@@ -132,7 +161,7 @@ export function createStateHook<C extends Config<any, any, any>>() {
         const targetPaths = new Set<string>()
 
         // By creating a pathTracker we can populate this SET
-        targetState(createPathTracker(state, targetPaths))
+        targetState(createPathTracker(state, { paths: targetPaths }))
 
         // We only want the last path, as the is the complete path to the value we return
         // ex. useState(state => state.items[0]), we track "items", "items.0". We only
@@ -150,7 +179,9 @@ export function createStateHook<C extends Config<any, any, any>>() {
           (update) => {
             log(
               LogType.COMPONENT_RENDER,
-              `"${name}", tracking "${Array.from(paths).join(', ')}"`
+              `"${name}", tracking "${Array.from(tracker.current.paths).join(
+                ', '
+              )}"`
             )
 
             // We only update the state if it is actually mounted
@@ -158,7 +189,7 @@ export function createStateHook<C extends Config<any, any, any>>() {
               updateState(update)
             }
           },
-          paths,
+          tracker.current.paths,
           name
         )
       })
@@ -166,8 +197,8 @@ export function createStateHook<C extends Config<any, any, any>>() {
       // Lastly we return a pathTracker around the actual state
       // we expose to the component
       return targetPath.length
-        ? createPathTracker(state, paths, targetPath)
-        : createPathTracker(state, paths)
+        ? createPathTracker(state, tracker.current, targetPath)
+        : createPathTracker(state, tracker.current)
     }
 
     throwMissingStoreError()
@@ -202,13 +233,28 @@ export function createComputedHook<C extends Config<any, any, any>>() {
 
     if (instance) {
       const [state, updateState] = React.useState(selector(instance.state))
-      const forceUpdate = React.useCallback(
-        (update) => updateState(selector(update)),
+
+      // Since our subscription ends async (useEffect) we have to
+      // make sure we do not update the state during an unmount
+      const mountedRef = React.useRef(true)
+
+      // We set it to false when the component unmounts
+      React.useEffect(
+        () => () => {
+          mountedRef.current = false
+        },
         []
       )
-      React.useLayoutEffect(() => {
+
+      React.useEffect(() => {
         // We subscribe to any update
-        return instance.subscribe(forceUpdate)
+        return instance.subscribe((update) => {
+          if (mountedRef.current) {
+            // Since React only renders when this state value
+            // actually changed, this is enough
+            updateState(selector(update))
+          }
+        })
       })
 
       return state

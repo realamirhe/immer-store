@@ -1,6 +1,6 @@
 {
   "name": "immer-store",
-  "version": "0.0.35",
+  "version": "0.0.37",
   "description": "Functional actions",
   "author": "Christian Alfoni <christianalfoni@gmail.com>",
   "license": "MIT",
