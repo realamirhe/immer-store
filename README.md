@@ -39,7 +39,7 @@ const productsById = produce((draft, action) => {
 **You can just write this:**
 
 ```ts
-const getProducts = ({ state }, payload) => {
+const getProducts = async ({ state }, payload) => {
   const products = await api.getProducts()
 
   products.forEach((product) => {
