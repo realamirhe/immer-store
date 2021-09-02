@@ -33,7 +33,7 @@
     "react"
   ],
   "dependencies": {
-    "immer": "^8.0.1",
+    "immer": "^9.0.6",
     "reselect": "^4.0.0"
   },
   "devDependencies": {
