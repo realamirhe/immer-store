@@ -257,7 +257,7 @@ export const changeTitle: Action<string> = ({ state }, title) => {
 Since **immer-store** is tracking what components actually use it has a pretty nice optimization especially useful in lists. You can target a piece of state and then ensure that the component only renders again if that specific piece of state changes.
 
 ```tsx
-const Todo: React.FC<{ id: string }> = ({ id }) => {
+function Todo({ id }: { id: string }) {
   const todo = useState((state) => state.posts[id])
   const actions = useActions()
 
