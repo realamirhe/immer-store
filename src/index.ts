@@ -10,6 +10,7 @@ import {
   Options,
 } from './types'
 import { log, configureUtils, getTarget } from './utils'
+
 export {
   createStateHook,
   createActionsHook,
@@ -28,7 +29,7 @@ export const createComputed: typeof createSelector = (...args: any[]) => {
   // @ts-ignore
   const selector = createSelector(...args)
 
-  return (state) => selector(state[GET_BASE_STATE] || state)
+  return (state: object) => selector(state[GET_BASE_STATE] || state)
 }
 
 // Used to give debugging information about what type of mutations
@@ -47,16 +48,15 @@ const arrayMutations = new Set([
 // Finishes the draft passed in and produces a SET of
 // state paths affected by this draft. This will be used
 // to match any paths subscribed to by components
-function getNewStateAndChangedPaths(draft) {
+function getNewStateAndChangedPaths<S extends State>(draft: Draft<S>) {
   const paths = new Set<string>()
 
   const newState = finishDraft(draft, (operations) => {
     operations.forEach((operation) => {
-      // When a key/index is added to an object/array the path to the object/array itself also has a change
-      if (operation.op === 'add' || operation.op === 'remove') {
+      // When a key/index is added to (removed from) an object/array the path to the object/array itself changes
+      if (operation.op !== 'replace') {
         paths.add(operation.path.slice(0, operation.path.length - 1).join('.'))
       }
-
       paths.add(operation.path.join('.'))
     })
   })
@@ -121,10 +121,7 @@ export function createStore<
     // When a component listens to specific paths we create a subscription
     if (paths) {
       const currentPaths = Array.from(paths)
-      const subscription = {
-        update,
-        name,
-      }
+      const subscription = { update, name }
       // The created subscription is added to each path
       // that it is interested
       currentPaths.forEach((path) => {
@@ -175,7 +172,7 @@ export function createStore<
 
   // Creates a new version of the state and passes any paths
   // affected to notify subscribers
-  function flushMutations(draft) {
+  function flushMutations(draft: Draft<S>) {
     const { newState, paths } = getNewStateAndChangedPaths(draft)
     currentState = newState
     if (paths.size) {
@@ -191,7 +188,8 @@ export function createStore<
 
   // We keep track of the current draft globally. This ensures that all actions
   // always points to the latest draft produced, even when running async
-  let currentDraft = createDraft(currentState)
+  // FIXME: Why it needs extra casting, it may cause problem by being Immutable<Draft<S>> at the time
+  let currentDraft = createDraft(currentState as S)
 
   // This is the factory for creating actions. It wraps the action from the
   // developer and injects state and effects. It also manages draft updates
@@ -221,7 +219,7 @@ export function createStore<
         }
 
         flushMutations(currentDraft)
-        currentDraft = createDraft(currentState)
+        currentDraft = createDraft(currentState as S)
         isAsync = false
       }
 
@@ -259,13 +257,13 @@ export function createStore<
               // use that path on the current draft to grab the current draft state
               const target = getTarget(path, currentDraft)
 
-              return Reflect.getOwnPropertyDescriptor(target, prop)
+              return Reflect.getOwnPropertyDescriptor(target as object, prop)
             },
             // Just a proxy trap needed to target draft state
             ownKeys() {
               const target = getTarget(path, currentDraft)
 
-              return Reflect.ownKeys(target)
+              return Reflect.ownKeys(target as object)
             },
             get(_, prop) {
               // Related to using computed in an action we rather want to use
@@ -275,7 +273,7 @@ export function createStore<
                 return currentState
               }
 
-              const target = getTarget(path, currentDraft)
+              const target = getTarget(path, currentDraft) as object
 
               // We do not need to handle symbols
               if (typeof prop === 'symbol') {
@@ -328,7 +326,7 @@ export function createStore<
                 `${name} did a SET on path "${path.join('.')}"`,
                 value
               )
-              return Reflect.set(target, prop, value)
+              return Reflect.set(target as object, prop, value)
             },
             // This is a proxy trap for deleting values, same stuff
             deleteProperty(_, prop) {
@@ -339,13 +337,13 @@ export function createStore<
                 LogType.MUTATION,
                 `${name} did a DELETE on path "${path.join('.')}"`
               )
-              return Reflect.deleteProperty(target, prop)
+              return Reflect.deleteProperty(target as object, prop)
             },
             // Just a trap we need to handle
             has(_, prop) {
               const target = getTarget(path, currentDraft)
 
-              return Reflect.has(target, prop)
+              return Reflect.has(target as object, prop)
             },
           }
         )
@@ -366,7 +364,7 @@ export function createStore<
       )
 
       // If the action returns a promise (probably async) we wait for it to finish.
-      // This indicates that it is time to flush out any mutations and indiciate a
+      // This indicates that it is time to flush out any mutations and indicate a
       // stop of execution
       if (actionResult instanceof Promise) {
         actionResult
